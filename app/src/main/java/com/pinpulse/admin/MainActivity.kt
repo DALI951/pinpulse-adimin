@@ -36,16 +36,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.pinpulse.admin.bridge.PinPulseAdminBridge
+import com.pinpulse.admin.data.AdminMqttManager
 import com.pinpulse.admin.security.AdminSecurityManager
+import com.pinpulse.admin.ui.AdminHomeScreen
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var securityManager: AdminSecurityManager
+    private lateinit var mqttManager: AdminMqttManager
     private var webViewRef: WebView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         securityManager = AdminSecurityManager(this)
+        mqttManager = AdminMqttManager(applicationContext)
 
         setContent {
             PinPulseAdminTheme {
@@ -77,10 +81,10 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        AdminConsoleScreen(
+                        AdminHomeScreen(
                             securityManager = securityManager,
-                            onLock = { isAuthenticated = false },
-                            onInitWebView = { wv -> webViewRef = wv }
+                            mqttManager = mqttManager,
+                            onLock = { isAuthenticated = false }
                         )
                     }
                 }

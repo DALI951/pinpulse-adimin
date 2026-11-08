@@ -27,6 +27,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Fix Line Endings and Permissions for Gradle Wrapper
         run: |
           sed -i 's/\r$//' gradlew

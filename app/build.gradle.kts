@@ -99,6 +99,8 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.gson)
     implementation(libs.okhttp)
+    implementation(libs.paho.mqtt)
+    implementation(libs.osmdroid.android)
 
     debugImplementation(libs.androidx.ui.tooling)
 }
