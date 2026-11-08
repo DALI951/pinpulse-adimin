@@ -27,8 +27,10 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Make Gradle Wrapper Executable
-        run: chmod +x gradlew
+      - name: Fix Line Endings and Permissions for Gradle Wrapper
+        run: |
+          sed -i 's/\r$//' gradlew
+          chmod +x gradlew
 
       - name: Calculate Release Version
         run: |
