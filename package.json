@@ -1,0 +1,18 @@
+{
+  "name": "pinpulse-admin",
+  "version": "1.0.0",
+  "description": "Hardware-Secured PinPulse Master Radar, CRM, and Fleet Command Console",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "pinpulse",
+    "admin",
+    "fleet-command",
+    "hardware-security"
+  ],
+  "author": "PinPulse Core Team",
+  "license": "UNLICENSED",
+  "private": true
+}

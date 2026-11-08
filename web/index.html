@@ -1,0 +1,4757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PinPulse Master Admin Console (Hardware Secured & Fleet Command)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ---------------- THEME VARIABLES & ACCESSIBILITY TOKENS ---------------- */
+    :root {
+      --bg: #090d16;
+      --panel: #0f172a;
+      --panel-secondary: #131d31;
+      --panel-border: #1e293b;
+      --panel-border-bright: #334155;
+      --primary: #10b981;
+      --primary-glow: rgba(16, 185, 129, 0.35);
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.35);
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.35);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --focus-ring: #38bdf8;
+      --font-scale: 1;
+      --pulse-animation-state: running;
+      --transition-duration: 0.2s;
+    }
+
+    /* High Contrast Cyber Mode (WCAG AAA) */
+    body.theme-high-contrast {
+      --bg: #000000;
+      --panel: #050505;
+      --panel-secondary: #0d0d0d;
+      --panel-border: #00e5ff;
+      --panel-border-bright: #ffffff;
+      --primary: #00ff66;
+      --primary-glow: rgba(0, 255, 102, 0.6);
+      --accent: #00e5ff;
+      --accent-glow: rgba(0, 229, 255, 0.6);
+      --warning: #ffea00;
+      --danger: #ff0055;
+      --danger-glow: rgba(255, 0, 85, 0.6);
+      --text: #ffffff;
+      --text-muted: #d4d4d8;
+      --focus-ring: #ffff00;
+    }
+
+    /* Daylight High-Visibility Mode */
+    body.theme-daylight {
+      --bg: #f1f5f9;
+      --panel: #ffffff;
+      --panel-secondary: #e2e8f0;
+      --panel-border: #cbd5e1;
+      --panel-border-bright: #94a3b8;
+      --primary: #059669;
+      --primary-glow: rgba(5, 150, 105, 0.25);
+      --accent: #2563eb;
+      --accent-glow: rgba(37, 99, 235, 0.25);
+      --warning: #d97706;
+      --danger: #dc2626;
+      --danger-glow: rgba(220, 38, 38, 0.25);
+      --text: #0f172a;
+      --text-muted: #475569;
+      --focus-ring: #2563eb;
+    }
+
+    /* Night Amber Ops (Night vision protection) */
+    body.theme-night-amber {
+      --bg: #120900;
+      --panel: #1a0f02;
+      --panel-secondary: #261605;
+      --panel-border: #593508;
+      --panel-border-bright: #8c530d;
+      --primary: #ffaa00;
+      --primary-glow: rgba(255, 170, 0, 0.4);
+      --accent: #ff8800;
+      --accent-glow: rgba(255, 136, 0, 0.4);
+      --warning: #ffcc00;
+      --danger: #ff3300;
+      --danger-glow: rgba(255, 51, 0, 0.4);
+      --text: #fff2e0;
+      --text-muted: #c2996b;
+      --focus-ring: #ffaa00;
+    }
+
+    /* Reduced Motion */
+    body.reduce-motion * {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    /* Colorblind simulation / contrast filters */
+    body.cb-protanopia { filter: url('#cb-filter-protanopia'); }
+    body.cb-deuteranopia { filter: url('#cb-filter-deuteranopia'); }
+    body.cb-tritanopia { filter: url('#cb-filter-tritanopia'); }
+    body.cb-mono { filter: grayscale(100%) contrast(125%); }
+
+    /* ---------------- BASE RESET & TYPOGRAPHY ---------------- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: calc(14px * var(--font-scale));
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    button, input, select {
+      font-family: inherit;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--focus-ring) !important;
+      outline-offset: 2px !important;
+    }
+
+    /* ---------------- TOP COMMAND BAR (SOC HEADER) ---------------- */
+    #top-bar {
+      height: 60px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      z-index: 1001;
+      box-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .radar-brand-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-title h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .admin-pill {
+      font-size: 0.65rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+      color: #fff;
+      padding: 3px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      box-shadow: 0 0 10px var(--danger-glow);
+    }
+
+    .brand-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Header Live Metrics Ticker */
+    .telemetry-ticker {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 6px 14px;
+    }
+
+    .ticker-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .ticker-lbl {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-size: 0.65rem;
+      letter-spacing: 0.04em;
+    }
+
+    .ticker-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .ticker-divider {
+      width: 1px;
+      height: 16px;
+      background: var(--panel-border-bright);
+    }
+
+    /* Emergency Siren Alert Banner in Ticker */
+    .siren-alert-indicator {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.75rem;
+      animation: alertPulse 1.2s infinite alternate;
+    }
+
+    @keyframes alertPulse {
+      0% { opacity: 0.7; transform: scale(0.98); }
+      100% { opacity: 1; transform: scale(1.02); box-shadow: 0 0 14px var(--danger-glow); }
+    }
+
+    /* Header Action Controls */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-admin {
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all var(--transition-duration);
+    }
+
+    .btn-admin:hover {
+      background: var(--panel-border);
+      border-color: var(--panel-border-bright);
+    }
+
+    .btn-admin.danger-btn {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
+    .btn-admin.danger-btn:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    .btn-admin.accent-btn {
+      background: rgba(59, 130, 246, 0.18);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #93c5fd;
+    }
+
+    .btn-admin.accent-btn:hover {
+      background: rgba(59, 130, 246, 0.35);
+      color: #fff;
+    }
+
+    /* ---------------- MAIN CONTAINER ---------------- */
+    #main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+      position: relative;
+    }
+
+    /* ---------------- SIDEBAR (CONTROL HUB) ---------------- */
+    #sidebar {
+      width: 420px;
+      background: var(--panel);
+      border-right: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--bg);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 4px;
+      gap: 4px;
+    }
+
+    .sidebar-tab {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 8px 4px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      transition: all var(--transition-duration);
+    }
+
+    .sidebar-tab.active {
+      background: var(--panel);
+      color: var(--accent);
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .tab-badge {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 6px;
+      border-radius: 10px;
+      font-size: 0.65rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .sidebar-tab.active .tab-badge {
+      background: rgba(59, 130, 246, 0.2);
+      color: var(--accent);
+    }
+
+    /* Tab Panes */
+    .tab-pane {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      flex-direction: column;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    /* Search & Filter Toolbar */
+    .search-section {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--panel-border);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .search-input-wrap {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 9px 12px 9px 34px;
+      color: var(--text);
+      font-size: 0.82rem;
+      outline: none;
+      transition: all var(--transition-duration);
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .search-icon-svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
+    }
+
+    .filter-chips {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .filter-chip {
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .filter-chip.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* User Node Cards */
+    #user-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .user-card {
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all var(--transition-duration);
+      position: relative;
+    }
+
+    .user-card:hover {
+      background: var(--panel-border);
+      border-color: var(--panel-border-bright);
+      transform: translateY(-1px);
+    }
+
+    .user-card.active {
+      border-color: var(--primary);
+      background: rgba(16, 185, 129, 0.08);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.15);
+    }
+
+    .card-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #1e293b;
+      border: 2px solid var(--primary);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .card-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .card-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-code {
+      font-size: 0.68rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--primary);
+      background: rgba(16, 185, 129, 0.1);
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+    }
+
+    .card-email {
+      font-size: 0.72rem;
+      color: var(--accent);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .card-telemetry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .badge-speed {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+    }
+
+    .badge-battery {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+
+    .badge-battery.normal {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+    }
+
+    .badge-battery.low {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .card-quick-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .action-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--panel-border);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      transition: all var(--transition-duration);
+    }
+
+    .action-icon-btn:hover {
+      background: var(--panel-border-bright);
+      color: var(--text);
+    }
+
+    .action-icon-btn.ring:hover {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--warning);
+      color: #fbbf24;
+    }
+
+    .action-icon-btn.stop:hover {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: var(--danger);
+      color: #f87171;
+    }
+
+    /* ---------------- AUDIT LOG PANE ---------------- */
+    #audit-log-pane {
+      background: var(--bg);
+      font-family: 'JetBrains Mono', monospace;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--panel-border);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    #log-stream {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.72rem;
+      padding-top: 4px;
+    }
+
+    .log-entry {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-left: 3px solid var(--accent);
+      padding: 6px 8px;
+      border-radius: 4px;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .log-entry.alarm {
+      border-left-color: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+      color: #fca5a5;
+    }
+
+    .log-entry.silence {
+      border-left-color: var(--warning);
+      background: rgba(245, 158, 11, 0.1);
+      color: #fde68a;
+    }
+
+    .log-entry.connect {
+      border-left-color: var(--primary);
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      margin-right: 6px;
+    }
+
+    /* ---------------- SYSTEM DIAGNOSTICS PANE ---------------- */
+    #diag-pane {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .diag-card {
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .diag-title {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .diag-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .diag-metric {
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 8px;
+    }
+
+    .diag-lbl {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    .diag-val {
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+      margin-top: 2px;
+    }
+
+    /* ---------------- MAP CANVAS & HUD OVERLAYS ---------------- */
+    #map-wrapper {
+      flex: 1;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #090d16;
+    }
+
+    /* Map Style Switcher (Floating HUD) */
+    .map-style-switcher {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+      padding: 4px;
+      display: flex;
+      gap: 4px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .style-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--transition-duration);
+    }
+
+    .style-btn.active, .style-btn:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Coordinates Crosshair HUD (Bottom Left) */
+    .coords-hud {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ---------------- FLOATING PERSON DETAIL MODAL ---------------- */
+    #person-modal {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 400px;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border-bright);
+      border-radius: 18px;
+      padding: 20px;
+      z-index: 1000;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+      display: none;
+      animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(16px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .modal-avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      border: 3px solid var(--primary);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 800;
+      background: #1e293b;
+      color: #fff;
+      box-shadow: 0 0 14px var(--primary-glow);
+      flex-shrink: 0;
+    }
+
+    .modal-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .modal-name-group {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .modal-name {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .modal-email {
+      font-size: 0.78rem;
+      color: var(--accent);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .modal-code-badge {
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--primary);
+      margin-top: 3px;
+    }
+
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .stat-box {
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    .stat-lbl {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .stat-val {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-top: 2px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Dual Siren Remote Controls */
+    .siren-control-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-action-ring {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+    }
+
+    .btn-action-stop-ring {
+      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+      color: #fff;
+      border: none;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-action-nav {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 11px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      margin-bottom: 8px;
+      transition: background var(--transition-duration);
+    }
+
+    .btn-action-nav:hover {
+      background: #2563eb;
+    }
+
+    .modal-bottom-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-sub-action {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--panel-border);
+      color: var(--text-muted);
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-duration);
+    }
+
+    .btn-sub-action:hover {
+      background: var(--panel-secondary);
+      color: var(--text);
+    }
+
+    /* ---------------- ACCESSIBILITY & DISPLAY MODAL ---------------- */
+    #a11y-dialog {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #a11y-dialog.open {
+      display: flex;
+    }
+
+    .a11y-box {
+      width: 580px;
+      max-width: 95vw;
+      max-height: 85vh;
+      overflow-y: auto;
+      background: var(--panel);
+      border: 1px solid var(--panel-border-bright);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .a11y-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 12px;
+    }
+
+    .a11y-header h2 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .a11y-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .a11y-section-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .a11y-options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+
+    .a11y-choice-btn {
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--transition-duration);
+    }
+
+    .a11y-choice-btn.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .a11y-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      border-radius: 10px;
+    }
+
+    .a11y-toggle-lbl {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .a11y-toggle-name {
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .a11y-toggle-desc {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+    }
+
+    /* Toggle Switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #334155;
+      transition: .2s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .2s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--primary);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Keyboard Shortcuts Table */
+    .kbd-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+    }
+
+    .kbd-table td {
+      padding: 6px 4px;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    kbd {
+      background: var(--bg);
+      border: 1px solid var(--panel-border-bright);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--primary);
+      font-weight: 700;
+    }
+
+    /* ---------------- LEAFLET CUSTOM MARKER STYLES ---------------- */
+    .pinpulse-marker {
+      background: transparent;
+      border: none;
+    }
+
+    .pinpulse-marker-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--primary-glow);
+      z-index: 1;
+      animation: pulseWave 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+    }
+
+    @keyframes pulseWave {
+      0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; }
+      70% { transform: translate(-50%, -50%) scale(1.6); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+    }
+
+    .avatar-bubble {
+      position: relative;
+      z-index: 2;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid var(--primary);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+      background: #1e293b;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.1rem;
+    }
+
+    .avatar-bubble img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .name-pill {
+      position: relative;
+      z-index: 3;
+      margin-top: 4px;
+      background: rgba(15, 23, 42, 0.94);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Minimalist Dot Mode Marker (Clean non-interfering dot) */
+    .minimal-dot-wrapper {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+    }
+
+    .minimal-dot-core {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid #fff;
+      box-shadow: 0 0 10px var(--primary);
+      position: absolute;
+      top: 4px;
+      left: 4px;
+    }
+
+    /* ---------------- SAAS SUBSCRIPTIONS & USERS CRM DASHBOARD ---------------- */
+    #crm-view {
+      display: none;
+      flex: 1;
+      background: var(--bg);
+      overflow-y: auto;
+      padding: 20px 24px 60px;
+      flex-direction: column;
+      gap: 18px;
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+    }
+    #crm-view.active, #crm-view.open {
+      display: flex;
+    }
+    #friends-view {
+      display: none;
+      flex: 1;
+      background: var(--bg);
+      overflow-y: auto;
+      padding: 20px 24px 60px;
+      flex-direction: column;
+      gap: 18px;
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+    }
+    #friends-view.active, #friends-view.open {
+      display: flex;
+    }
+    .friend-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 16px;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .friend-card:hover {
+      border-color: var(--panel-border-bright);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    .friend-item-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--panel-secondary);
+      border: 1px solid var(--panel-border);
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 6px;
+    }
+    .crm-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 12px;
+    }
+    .crm-kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .crm-kpi-lbl {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .crm-kpi-val {
+      font-size: 1.45rem;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text);
+    }
+    .crm-kpi-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .crm-toolbar {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .crm-table-wrap {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      overflow-x: auto;
+    }
+    .crm-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      min-width: 1050px;
+    }
+    .crm-table th {
+      text-align: left;
+      padding: 12px 14px;
+      background: var(--panel-secondary);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .crm-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--panel-border);
+      vertical-align: middle;
+    }
+    .crm-table tr:hover td {
+      background: rgba(59, 130, 246, 0.05);
+    }
+    .pack-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+    .pack-DEMO { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.45); }
+    .pack-FAMILY { background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); }
+    .pack-BUSINESS { background: rgba(59, 130, 246, 0.16); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.45); }
+    .pack-CUSTOM { background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.5); }
+
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-size: 0.66rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .status-ACTIVE { background: rgba(16, 185, 129, 0.16); color: #34d399; }
+    .status-DEACTIVATED { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .status-BANNED { background: rgba(239, 68, 68, 0.22); color: #f87171; }
+    .status-EXPIRED { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+    .status-DELETED { background: rgba(239, 68, 68, 0.35); color: #fecaca; }
+
+    .crm-btn {
+      padding: 5px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--panel-border-bright);
+      background: var(--panel-secondary);
+      color: var(--text);
+      font-size: 0.7rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.15s;
+    }
+    .crm-btn:hover { filter: brightness(1.2); border-color: var(--accent); }
+    .crm-btn.warn { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.45); }
+    .crm-btn.danger { background: rgba(239, 68, 68, 0.16); color: #f87171; border-color: rgba(239, 68, 68, 0.45); }
+    .crm-btn.success { background: rgba(16, 185, 129, 0.16); color: #34d399; border-color: rgba(16, 185, 129, 0.45); }
+    .crm-select {
+      background: var(--panel-secondary);
+      color: var(--text);
+      border: 1px solid var(--panel-border-bright);
+      border-radius: 6px;
+      padding: 4px 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    #person-modal {
+      max-height: calc(100vh - 95px);
+      overflow-y: auto;
+    }
+  </style>
+
+  <!-- SVG Filters for Colorblind simulation -->
+  <svg style="display: none;">
+    <filter id="cb-filter-protanopia">
+      <feColorMatrix type="matrix" values="0.567, 0.433, 0, 0, 0  0.558, 0.442, 0, 0, 0  0, 0.242, 0.758, 0, 0  0, 0, 0, 1, 0" />
+    </filter>
+    <filter id="cb-filter-deuteranopia">
+      <feColorMatrix type="matrix" values="0.625, 0.375, 0, 0, 0  0.7, 0.3, 0, 0, 0  0, 0.3, 0.7, 0, 0  0, 0, 0, 1, 0" />
+    </filter>
+    <filter id="cb-filter-tritanopia">
+      <feColorMatrix type="matrix" values="0.95, 0.05, 0, 0, 0  0, 0.433, 0.567, 0, 0  0, 0.475, 0.525, 0, 0  0, 0, 0, 1, 0" />
+    </filter>
+  </svg>
+</head>
+<body>
+
+  <!-- ==================== TOP COMMAND BAR ==================== -->
+  <header id="top-bar" role="banner">
+    <div class="brand-section">
+      <div class="radar-brand-badge" aria-hidden="true">📡</div>
+      <div>
+        <div class="brand-title">
+          <h1>PinPulse</h1>
+          <span class="admin-pill">FLEET OPS ADMIN</span>
+        </div>
+        <div class="brand-subtitle">LIVE GPS RADAR & SECURITY COMMAND</div>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Ticker -->
+    <div class="telemetry-ticker" role="region" aria-label="Fleet Telemetry Metrics">
+      <div class="ticker-item">
+        <span class="ticker-lbl">Fleet Active:</span>
+        <span class="ticker-val" id="tk-live-count" style="color: var(--primary);">0 Online</span>
+      </div>
+      <div class="ticker-divider" aria-hidden="true"></div>
+      <div class="ticker-item">
+        <span class="ticker-lbl">Relay:</span>
+        <span class="ticker-val" id="tk-relay-status" style="color: #38bdf8;">Connecting...</span>
+      </div>
+      <div class="ticker-divider" aria-hidden="true"></div>
+      <div class="ticker-item">
+        <span class="ticker-lbl">Avg Battery:</span>
+        <span class="ticker-val" id="tk-battery-avg">--%</span>
+      </div>
+      <div class="siren-alert-indicator" id="tk-siren-alert" role="alert">
+        🚨 ACTIVE EMERGENCY SIREN TRIGGERED
+      </div>
+    </div>
+
+    <!-- Header Operations & Accessibility Buttons -->
+    <div class="header-actions">
+      <button class="btn-admin accent-btn" id="btn-view-map" onclick="switchMainWorkspaceView('map')" style="background: var(--primary); color: #000;">
+        🗺️ Live Radar Map
+      </button>
+      <button class="btn-admin" id="btn-view-crm" onclick="switchMainWorkspaceView('crm')">
+        💼 Users & Subscriptions CRM
+      </button>
+      <button class="btn-admin" id="btn-view-friends" onclick="switchMainWorkspaceView('friends')">
+        👥 Friends Network & Force-Pair
+      </button>
+      <a class="btn-admin accent-btn" href="simulator.html" target="_blank" style="text-decoration:none; border-color:#a855f7; color:#c084fc;" title="Open Web App & Placeholder Accounts Simulator to test friend/group limits and rate limits">
+        🧪 Test Limits Simulator
+      </a>
+
+      <button class="btn-admin" id="btn-toggle-live-watch" onclick="toggleAdminLiveFleetWatch()" style="border-color: #10b981; color: #10b981;" title="Ping all devices every 20s so they stream high-accuracy live GPS (Smart Hybrid Engine)">
+        📡 Watch: <span id="lbl-live-watch-state">ACTIVE</span>
+      </button>
+
+      <button class="btn-admin" onclick="openForceUpdateModal()" style="border-color: #f59e0b; color: #f59e0b; font-weight:700;" title="Enforce mandatory client app update across the fleet">
+        🚀 Force Update
+      </button>
+
+      <button class="btn-admin danger-btn" id="btn-fleet-silence" onclick="silenceAllFleetSirens()" title="Stop all ringing sirens remotely (Alt+M)" aria-label="Stop all sirens remotely">
+        🛑 Silence All Sirens
+      </button>
+
+      <div id="hardware-lock-badge" style="display:inline-flex; align-items:center; gap:6px; font-size:0.75rem; font-weight:700; color:#10b981; background:rgba(16,185,129,0.14); border:1px solid #10b981; border-radius:8px; padding:6px 12px; margin-right:8px;" title="System locked to authorized PC hardware: 0A:E0:AF:A6:0E:2F">
+        🛡️ <span id="hw-badge-text">PC HARDWARE LOCKED [0A:E0:AF:A6:0E:2F]</span>
+      </div>
+      <button class="btn-admin accent-btn" onclick="fitAllMarkersOnMap()" title="Fit all devices on screen (Alt+F)" aria-label="Auto-fit all devices">
+        🎯 Fit Fleet
+      </button>
+
+      <button class="btn-admin" onclick="openA11yDialog()" title="Display & Accessibility settings (Alt+A)" aria-label="Open accessibility settings">
+        ♿ Accessibility
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <main id="main-container">
+
+    <!-- SIDEBAR -->
+    <aside id="sidebar" role="region" aria-label="Admin Control Hub">
+      <!-- 4 Tab Navigation -->
+      <nav class="sidebar-tabs" role="tablist">
+        <button class="sidebar-tab active" id="tab-btn-active" role="tab" aria-selected="true" onclick="switchSidebarTab('active')">
+          <span>Fleet Nodes</span>
+          <span class="tab-badge" id="badge-active-count">0</span>
+        </button>
+        <button class="sidebar-tab" id="tab-btn-removed" role="tab" aria-selected="false" onclick="switchSidebarTab('removed')">
+          <span>Quarantine</span>
+          <span class="tab-badge" id="badge-removed-count">0</span>
+        </button>
+        <button class="sidebar-tab" id="tab-btn-audit" role="tab" aria-selected="false" onclick="switchSidebarTab('audit')">
+          <span>Audit Log</span>
+          <span class="tab-badge" id="badge-log-count">0</span>
+        </button>
+        <button class="sidebar-tab" id="tab-btn-diag" role="tab" aria-selected="false" onclick="switchSidebarTab('diag')">
+          <span>Relay Diag</span>
+          <span class="tab-badge" style="color: var(--primary);">OK</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: FLEET NODES -->
+      <div class="tab-pane active" id="pane-active">
+        <div class="search-section">
+          <div class="search-input-wrap">
+            <svg class="search-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" class="search-input" id="search-box" placeholder="Search name, email, or friend code... (Press /)" aria-label="Search devices" />
+          </div>
+
+          <div class="filter-chips">
+            <button class="filter-chip active" data-filter="all" onclick="setNodeFilter('all', this)">All Nodes</button>
+            <button class="filter-chip" data-filter="live" onclick="setNodeFilter('live', this)">Live Now</button>
+            <button class="filter-chip" data-filter="moving" onclick="setNodeFilter('moving', this)">Moving (>5km/h)</button>
+            <button class="filter-chip" data-filter="lowbat" onclick="setNodeFilter('lowbat', this)">Low Battery (&lt;20%)</button>
+          </div>
+        </div>
+
+        <div id="user-list" role="list" aria-label="Active Fleet Devices">
+          <div style="padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+            Awaiting live GPS telemetry from devices...
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: QUARANTINE / REMOVED -->
+      <div class="tab-pane" id="pane-removed">
+        <div style="padding: 12px 14px; border-bottom: 1px solid var(--panel-border); display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted);">Quarantined / Blacklisted Devices</span>
+          <button class="btn-admin" onclick="restoreAll()" style="font-size: 0.7rem;">Restore All</button>
+        </div>
+        <div id="removed-list" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;"></div>
+      </div>
+
+      <!-- TAB 3: AUDIT LOG -->
+      <div class="tab-pane" id="pane-audit">
+        <div id="audit-log-pane">
+          <div class="log-toolbar">
+            <span>LIVE AUDIT STREAM (MQTT)</span>
+            <button class="btn-admin" onclick="clearAuditLog()" style="padding: 2px 8px; font-size: 0.65rem;">Clear Log</button>
+          </div>
+          <div id="log-stream" role="log" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: SYSTEM & RELAY DIAGNOSTICS -->
+      <div class="tab-pane" id="pane-diag">
+        <div id="diag-pane">
+          <div class="diag-card">
+            <div class="diag-title">Broker Telemetry & Uplink</div>
+            <div class="diag-grid">
+              <div class="diag-metric">
+                <div class="diag-lbl">Active Relay</div>
+                <div class="diag-val" id="diag-broker-name" style="font-size: 0.78rem;">EMQX</div>
+              </div>
+              <div class="diag-metric">
+                <div class="diag-lbl">Uplink Latency</div>
+                <div class="diag-val" id="diag-ping" style="color: var(--primary);">-- ms</div>
+              </div>
+              <div class="diag-metric">
+                <div class="diag-lbl">Packets Ingested</div>
+                <div class="diag-val" id="diag-pkt-count">0</div>
+              </div>
+              <div class="diag-metric">
+                <div class="diag-lbl">QoS Protocol</div>
+                <div class="diag-val" style="color: #38bdf8;">MQTT v5 WSS</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="diag-card">
+            <div class="diag-title">Failover & Relay Switcher</div>
+            <div style="display: flex; gap: 6px; margin-top: 6px;">
+              <button class="btn-admin accent-btn" onclick="forceBrokerSwitch(0)" style="flex:1;">Primary (EMQX)</button>
+              <button class="btn-admin" onclick="forceBrokerSwitch(1)" style="flex:1;">Backup (HiveMQ)</button>
+            </div>
+          </div>
+
+          <div class="diag-card">
+            <div class="diag-title">Fleet Security Protocol</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); line-height: 1.5;">
+              • Siren Ring Topic: <code style="color:var(--primary);">pinpulse/v1/ring/{id}</code><br>
+              • Remote Stop Signal: <code style="color:var(--danger);">STOP_RING</code><br>
+              • Geofence Precision: High-Accuracy GPS (WGS84)<br>
+              • Storage Protection: Auto-cleaned APK cache
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAP CONTAINER -->
+    <section id="map-wrapper" aria-label="Interactive Radar Map">
+      <!-- Map Style HUD -->
+      <div class="map-style-switcher" role="toolbar" aria-label="Map Tile Style">
+        <button class="style-btn active" onclick="setMapLayer('streets', this)">Streets</button>
+        <button class="style-btn" onclick="setMapLayer('satellite', this)">Satellite</button>
+        <button class="style-btn" onclick="setMapLayer('hybrid', this)">Hybrid</button>
+        <button class="style-btn" onclick="setMapLayer('night', this)">Night Ops</button>
+      </div>
+
+      <!-- Leaflet Canvas -->
+      <div id="map"></div>
+
+      <!-- Coordinates & Zoom HUD -->
+      <div class="coords-hud" id="coords-hud" aria-hidden="true">
+        <span>LAT: <span id="hud-lat" style="color:var(--text);">--.------</span></span>
+        <span>LNG: <span id="hud-lng" style="color:var(--text);">--.------</span></span>
+        <span>ZOOM: <span id="hud-zoom" style="color:var(--text);">12</span></span>
+      </div>
+
+      <!-- FLOATING TARGET INSPECTOR (PERSON MODAL) -->
+      <div id="person-modal" role="dialog" aria-modal="true" aria-labelledby="m-name">
+        <div class="modal-header">
+          <div class="modal-avatar" id="m-avatar">?</div>
+          <div class="modal-name-group">
+            <div class="modal-name" id="m-name">Unit Name</div>
+            <div class="modal-email" id="m-email">unit@email.com</div>
+            <div class="modal-code-badge" id="m-code">CODE: ----</div>
+          </div>
+          <button class="modal-close-btn" onclick="closeModal()" aria-label="Close inspector">✕</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-lbl">Battery & Power</div>
+            <div class="stat-val" id="m-battery" style="color: #34d399;">100%</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-lbl">Velocity / Speed</div>
+            <div class="stat-val" id="m-speed">0 km/h</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-lbl">Radar Health</div>
+            <div class="stat-val" id="m-status" style="color: var(--primary);">Live</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-lbl">Friend Sharing</div>
+            <div class="stat-val" id="m-sharing">Active</div>
+          </div>
+          <div class="stat-box" style="grid-column: span 2;">
+            <div class="stat-lbl">User Status Message</div>
+            <div class="stat-val" id="m-user-status-msg" style="font-size: 0.82rem; color: #38bdf8;">— No custom status set —</div>
+          </div>
+          <div class="stat-box" style="grid-column: span 2;">
+            <div class="stat-lbl">Precise GPS Coordinates</div>
+            <div class="stat-val" id="m-coords" style="font-size: 0.78rem;">36.806500, 10.181500</div>
+          </div>
+        </div>
+
+        <!-- Subscription & Governance Quick Controls in Inspector -->
+        <div style="background: var(--panel-secondary); border: 1px solid var(--panel-border); border-radius: 10px; padding: 10px; margin-bottom: 10px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:0.7rem; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Subscription & Quotas</span>
+            <span id="m-sub-status-badge" class="status-pill status-ACTIVE">ACTIVE</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.74rem; margin-bottom:8px;">
+            <div>Pack: <strong id="m-sub-plan" style="color:var(--primary);">DEMO</strong></div>
+            <div>Rate: <strong id="m-sub-rate" style="color:#fbbf24;">$0.00/mo</strong></div>
+            <div>Free/Paid Left: <strong id="m-sub-days" style="color:#38bdf8;">7d left</strong></div>
+            <div>Rate Limit: <strong id="m-sub-ratelimit">3s</strong></div>
+            <div style="grid-column:span 2;">Quotas: <strong id="m-sub-quotas">0/1 Friends • 0/0 Groups</strong></div>
+          </div>
+
+          <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;">
+            <button class="crm-btn" onclick="adminSetPack(selectedUserId, 'DEMO')" title="1 Friend, 0 Groups, 7 Days Free">🎁 Demo (7d)</button>
+            <button class="crm-btn success" onclick="adminSetPack(selectedUserId, 'FAMILY')" title="10 Friends, 2 Groups, 30 Days">👨‍👩‍👧‍👦 Family</button>
+            <button class="crm-btn" style="color:#60a5fa; border-color:#3b82f6;" onclick="adminSetPack(selectedUserId, 'BUSINESS')" title="50 Friends, 10 Groups, 30 Days">🏢 Business</button>
+            <button class="crm-btn" style="color:#c084fc; border-color:#a855f7;" onclick="openCustomPlanModal(selectedUserId)" title="100+ Friends, Custom Quotas & Price">⚡ Custom</button>
+            <button class="crm-btn" style="background:linear-gradient(135deg,#f59e0b,#10b981); color:#000; border-color:#fbbf24; font-weight:900;" onclick="adminActivateLifetime(selectedUserId)" title="Activate Permanent Lifetime Access (Never Expires)">♾️ Lifetime</button>
+          </div>
+
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button class="crm-btn warn" id="m-deactivate-btn" onclick="adminToggleDeactivate(selectedUserId)">⏸️ Deactivate (Unpaid)</button>
+            <button class="crm-btn danger" id="m-ban-btn" onclick="adminToggleBan(selectedUserId)">🚫 Ban</button>
+            <button class="crm-btn danger" onclick="adminDeleteAccount(selectedUserId)">🗑️ Delete Acc</button>
+          </div>
+        </div>
+
+        <!-- DUAL SIREN EMERGENCY CONTROLS -->
+        <div class="siren-control-row">
+          <button class="btn-action-ring" id="m-ring-btn" onclick="ringSelectedUser()">
+            🔊 Ring Phone
+          </button>
+          <button class="btn-action-stop-ring" id="m-stop-ring-btn" onclick="stopRingSelectedUser()">
+            🛑 Stop Siren
+          </button>
+        </div>
+
+        <!-- Navigation Button -->
+        <a id="m-nav-link" href="#" target="_blank" rel="noopener" class="btn-action-nav">
+          🗺️ Turn-by-Turn Google Maps Navigation
+        </a>
+
+        <!-- Bottom Actions -->
+        <div class="modal-bottom-actions">
+          <button class="btn-sub-action" onclick="copySelectedCoords()">📋 Copy GPS</button>
+          <button class="btn-sub-action" id="m-remove-btn" onclick="toggleRemoveSelected()">🚫 Quarantine</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== FULL SAAS USERS & SUBSCRIPTIONS CRM VIEW ==================== -->
+    <section id="crm-view" aria-label="Users and Subscriptions Management Dashboard">
+      <div class="crm-kpi-row">
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Total Registered Users</span>
+          <span class="crm-kpi-val" id="crm-kpi-total">0</span>
+          <span class="crm-kpi-sub" id="crm-kpi-online">0 currently online</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Demo Pack (7-Day Free)</span>
+          <span class="crm-kpi-val" id="crm-kpi-demo" style="color:#fbbf24;">0</span>
+          <span class="crm-kpi-sub">1 Friend • 0 Groups • 7d Trial</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Paid Subscribers</span>
+          <span class="crm-kpi-val" id="crm-kpi-paid" style="color:var(--primary);">0</span>
+          <span class="crm-kpi-sub">Family (10F/2G) • Business (50F/10G) • Custom</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Deactivated / Banned</span>
+          <span class="crm-kpi-val" id="crm-kpi-locked" style="color:var(--danger);">0</span>
+          <span class="crm-kpi-sub">Paused until payment or banned</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Monthly Recurring Revenue</span>
+          <span class="crm-kpi-val" id="crm-kpi-mrr" style="color:#38bdf8;">$0.00</span>
+          <span class="crm-kpi-sub">Active subscription billing rate</span>
+        </div>
+      </div>
+
+      <div class="crm-toolbar">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="text" id="crm-search" class="search-input" style="width:280px; padding-left:12px;" placeholder="Search user name, email, friend code, or pack..." oninput="renderCrmTable()" />
+          <select id="crm-filter-pack" class="crm-select" onchange="renderCrmTable()">
+            <option value="ALL">All Packs (Demo, Family, Business, Custom)</option>
+            <option value="DEMO">🎁 Demo Pack (1F / 0G / 7d Free)</option>
+            <option value="FAMILY">👨‍👩‍👧‍👦 Family Pack (10F / 2G)</option>
+            <option value="BUSINESS">🏢 Business Pack (50F / 10G)</option>
+            <option value="CUSTOM">⚡ Custom Enterprise (100+ Users)</option>
+          </select>
+          <select id="crm-filter-status" class="crm-select" onchange="renderCrmTable()">
+            <option value="ALL">All Account Statuses</option>
+            <option value="ACTIVE">🟢 Active</option>
+            <option value="DEACTIVATED">⏸️ Deactivated (Unpaid)</option>
+            <option value="BANNED">🚫 Banned</option>
+            <option value="EXPIRED">⌛ Expired (0 Free Days Left)</option>
+          </select>
+          <button class="crm-btn warn" style="padding:7px 12px; font-weight:800;" onclick="deduplicateUsers(true)" title="Automatically remove older duplicate accounts for the same user/email/code">🧹 Clean Duplicate Accounts</button>
+          <button class="crm-btn danger" style="padding:7px 12px; font-weight:800;" onclick="adminPruneAllInactiveAccounts()" title="Permanently purge inactive, deactivated, or deleted accounts">🗑️ Prune Inactive Accounts</button>
+          <a href="simulator.html" target="_blank" class="crm-btn" style="padding:7px 12px; font-weight:800; color:#c084fc; border-color:#a855f7; text-decoration:none;">🧪 Open Placeholder Accounts Simulator ›</a>
+        </div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">
+          Changes sync <strong>instantly in real time</strong> to the user's phone via MQTT Retained Governance.
+        </div>
+      </div>
+
+      <div class="crm-table-wrap">
+        <table class="crm-table">
+          <thead>
+            <tr>
+              <th>User / Account</th>
+              <th>GPS & Telemetry</th>
+              <th>Subscription Pack</th>
+              <th>Rate ($/mo)</th>
+              <th>Free / Remaining Days</th>
+              <th>Quotas (Friends & Groups)</th>
+              <th>Rate Limit</th>
+              <th>Account Status</th>
+              <th>Admin Actions (Pack / Lock / Ban / Delete)</th>
+            </tr>
+          </thead>
+          <tbody id="crm-table-body">
+            <tr>
+              <td colspan="9" style="text-align:center; padding:36px; color:var(--text-muted);">
+                Waiting for user registry & live packets...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ==================== FULL SAAS FRIENDSHIP NETWORK & INSTANT FORCE-PAIR VIEW ==================== -->
+    <section id="friends-view" aria-label="Friendship Network and Instant Force-Pair Console">
+      <!-- KPI Row -->
+      <div class="crm-kpi-row">
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Total Friendships Mapped</span>
+          <span class="crm-kpi-val" id="friends-kpi-total" style="color:var(--primary);">0</span>
+          <span class="crm-kpi-sub">Active connections across fleet</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Users With Friends</span>
+          <span class="crm-kpi-val" id="friends-kpi-connected" style="color:#38bdf8;">0</span>
+          <span class="crm-kpi-sub">Nodes in active circles</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Solo / Unconnected Users</span>
+          <span class="crm-kpi-val" id="friends-kpi-solo" style="color:#fbbf24;">0</span>
+          <span class="crm-kpi-sub">Ready for instant pairing</span>
+        </div>
+        <div class="crm-kpi-card">
+          <span class="crm-kpi-lbl">Instant Force-Pair Engine</span>
+          <span class="crm-kpi-val" style="color:#a855f7;">READY</span>
+          <span class="crm-kpi-sub">Direct pairing with 0 codes</span>
+        </div>
+      </div>
+
+      <!-- Instant Force-Pair Control Panel -->
+      <div style="background:var(--panel); border:1px solid var(--panel-border-bright); border-radius:16px; padding:20px; box-shadow:0 8px 30px rgba(0,0,0,0.5);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="font-size:1.15rem; font-weight:800; display:flex; align-items:center; gap:8px; margin:0;">
+              ⚡ Instant Force-Pair Friends
+            </h2>
+            <p style="font-size:0.8rem; color:var(--text-muted); margin:4px 0 0 0;">
+              Pair any two users instantly. No friend request, invitation code, or recipient acceptance needed ?" both devices update and link automatically via retained admin dispatch.
+            </p>
+          </div>
+          <span class="badge" style="background:rgba(56,189,248,0.15); border:1px solid #38bdf8; color:#38bdf8; padding:5px 12px; border-radius:999px; font-size:0.75rem; font-weight:700;">
+            Zero-Interaction Pairing
+          </span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:16px; align-items:center; margin-bottom:16px;">
+          <!-- User 1 Selector -->
+          <div style="background:var(--panel-secondary); border:1px solid var(--panel-border); border-radius:12px; padding:14px;">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:6px;">
+              User 1 (Initiator / Node A)
+            </label>
+            <select id="fp-user-1" class="crm-select" style="width:100%; padding:10px; font-size:0.85rem;" onchange="updatePairPreview()">
+              <option value="">Select User 1...</option>
+            </select>
+            <div id="fp-user-1-preview" style="margin-top:10px; font-size:0.78rem; color:var(--text-muted); min-height:42px;"></div>
+          </div>
+
+          <!-- Connection Direction Icon -->
+          <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">
+            <div style="width:44px; height:44px; border-radius:50%; background:rgba(16,185,129,0.15); border:1px solid var(--primary); display:flex; align-items:center; justify-content:center; font-size:1.2rem; color:var(--primary);">
+              ⇆
+            </div>
+            <span style="font-size:0.65rem; color:var(--text-muted); font-weight:700; text-transform:uppercase;">Bi-directional</span>
+          </div>
+
+          <!-- User 2 Selector -->
+          <div style="background:var(--panel-secondary); border:1px solid var(--panel-border); border-radius:12px; padding:14px;">
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; display:block; margin-bottom:6px;">
+              User 2 (Peer / Node B)
+            </label>
+            <select id="fp-user-2" class="crm-select" style="width:100%; padding:10px; font-size:0.85rem;" onchange="updatePairPreview()">
+              <option value="">Select User 2...</option>
+            </select>
+            <div id="fp-user-2-preview" style="margin-top:10px; font-size:0.78rem; color:var(--text-muted); min-height:42px;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div id="fp-status-feedback" style="font-size:0.8rem; font-weight:700; color:var(--primary);"></div>
+          <div style="display:flex; gap:12px; align-items:center;">
+            <button class="btn-admin" onclick="swapPairUsers()" title="Swap User 1 and User 2">
+              ⇄ Swap
+            </button>
+            <button class="btn-admin accent-btn" id="btn-force-pair-execute" onclick="executeForcePairAction()" style="background:var(--primary); color:#000; font-weight:800; padding:10px 22px; font-size:0.9rem;">
+              ⚡ Force Pair These Users Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Who Is Friends With Whom Live Directory -->
+      <div style="background:var(--panel); border:1px solid var(--panel-border); border-radius:16px; padding:20px; flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:8px; margin:0;">
+              👥 Who is Friends With Whom (Live Fleet Relationships)
+            </h2>
+            <span style="font-size:0.78rem; color:var(--text-muted);">
+              Inspect current friendship circles across all registered users in real time.
+            </span>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="friends-search" class="search-input" style="width:260px; padding-left:12px;" placeholder="Search user or friend name, email, code..." oninput="renderFriendsDirectory()" />
+            <select id="friends-filter-status" class="crm-select" onchange="renderFriendsDirectory()">
+              <option value="ALL">All Users</option>
+              <option value="WITH_FRIENDS">Only Users With Friends</option>
+              <option value="SOLO">Only Users Without Friends</option>
+            </select>
+            <button class="btn-admin" onclick="refreshFriendsRegistry()" title="Re-query broker for friend registries">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Friendship Cards Container -->
+        <div id="friends-cards-container" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:16px; margin-top:8px;">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== ACCOUNT MASTER EDITOR & CUSTOM PLAN MODAL ==================== -->
+  <div id="custom-plan-modal" role="dialog" aria-modal="true" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:3000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--panel); border:1px solid var(--panel-border-bright); border-radius:18px; width:100%; max-width:560px; max-height:92vh; overflow-y:auto; padding:24px; box-shadow:0 24px 60px rgba(0,0,0,0.8);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="font-size:1.1rem; font-weight:800; display:flex; align-items:center; gap:8px;">✏️ Edit Account, Profile & Plan</h3>
+        <button class="modal-close-btn" onclick="closeCustomPlanModal()">✕</button>
+      </div>
+      <div id="cp-user-label" style="font-size:0.8rem; color:var(--primary); font-weight:700; margin-bottom:14px;">User</div>
+      <input type="hidden" id="cp-user-id" />
+
+      <!-- Section: User Profile & Identity -->
+      <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">👤 Profile & Identity</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Display Name / Username</label>
+          <input type="text" id="cp-name" class="search-input" style="padding:7px 10px;" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Status Message</label>
+          <input type="text" id="cp-status-msg" class="search-input" style="padding:7px 10px;" placeholder="e.g. On duty, Travelling..." />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Email Address</label>
+          <input type="email" id="cp-email" class="search-input" style="padding:7px 10px;" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Friend Code</label>
+          <input type="text" id="cp-code" class="search-input" style="padding:7px 10px; font-weight:800;" />
+        </div>
+      </div>
+
+      <!-- Section: Subscription & Governance -->
+      <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">💼 Subscription Plan & Account Status</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Subscription Pack</label>
+          <select id="cp-plan" class="crm-select" style="width:100%; padding:8px;" onchange="onCustomModalPackPresetChange()">
+            <option value="DEMO">🎁 DEMO (1F / 0G / 7d)</option>
+            <option value="FAMILY">👨‍👩‍👧‍👦 FAMILY (10F / 2G)</option>
+            <option value="BUSINESS">🏢 BUSINESS (50F / 10G)</option>
+            <option value="CUSTOM">⚡ CUSTOM ENTERPRISE (100+)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Account Status</label>
+          <select id="cp-status" class="crm-select" style="width:100%; padding:8px;">
+            <option value="ACTIVE">🟢 ACTIVE (Normal Access)</option>
+            <option value="EXPIRED">⌛ EXPIRED (App Locked / Seen on Dashboard)</option>
+            <option value="DEACTIVATED">⏸️ DEACTIVATED (Paused until payment)</option>
+            <option value="BANNED">🚫 BANNED (Hard Lockout)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Monthly Rate ($ USD)</label>
+          <input type="number" step="0.01" id="cp-rate-usd" class="search-input" style="padding:7px 10px;" value="49.99" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Days Remaining (Free/Paid)</label>
+          <input type="number" step="1" id="cp-days-left" class="search-input" style="padding:7px 10px;" value="30" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Max Friends Quota</label>
+          <input type="number" id="cp-max-friends" class="search-input" style="padding:7px 10px;" value="100" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Max Circles Quota</label>
+          <input type="number" id="cp-max-groups" class="search-input" style="padding:7px 10px;" value="25" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Telemetry Rate Limit (sec)</label>
+          <select id="cp-rate-limit" class="crm-select" style="width:100%; padding:8px;">
+            <option value="1">1s (Ultra Fast)</option>
+            <option value="2">2s (High Priority)</option>
+            <option value="3" selected>3s (Standard Live)</option>
+            <option value="5">5s (Balanced)</option>
+            <option value="10">10s (Eco)</option>
+            <option value="30">30s (Throttled)</option>
+            <option value="60">60s (Restricted)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Battery Level (%)</label>
+          <input type="number" min="0" max="100" id="cp-battery" class="search-input" style="padding:7px 10px;" value="100" />
+        </div>
+      </div>
+
+      <!-- Section: Coordinates Override -->
+      <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">📍 GPS Coordinates (Manual Override)</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Latitude</label>
+          <input type="number" step="0.000001" id="cp-lat" class="search-input" style="padding:7px 10px;" />
+        </div>
+        <div>
+          <label style="font-size:0.7rem; color:var(--text-muted); display:block; margin-bottom:4px;">Longitude</label>
+          <input type="number" step="0.000001" id="cp-lng" class="search-input" style="padding:7px 10px;" />
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+        <div style="display:flex; gap:6px;">
+          <button class="crm-btn" style="background:linear-gradient(135deg,#f59e0b,#10b981); color:#000; border-color:#fbbf24; font-weight:900; padding:8px 12px;" onclick="var uid=document.getElementById('cp-user-id').value; closeCustomPlanModal(); adminActivateLifetime(uid);">♾️ Lifetime Access</button>
+          <button class="crm-btn danger" style="padding:8px 12px; font-weight:800;" onclick="var uid=document.getElementById('cp-user-id').value; closeCustomPlanModal(); adminPruneAccount(uid);">🗑️ Remove Account</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-admin" onclick="closeCustomPlanModal()">Cancel</button>
+          <button class="btn-admin accent-btn" style="background:var(--primary); color:#000; font-weight:800;" onclick="saveCustomPlanModal()">💾 Save & Push to Device</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FORCE UPDATE CLIENT FLEET MODAL ==================== -->
+  <div id="force-update-modal" role="dialog" aria-modal="true" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:3000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:var(--panel); border:1px solid #f59e0b; border-radius:18px; width:100%; max-width:480px; padding:24px; box-shadow:0 24px 60px rgba(0,0,0,0.9);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 style="font-size:1.15rem; font-weight:800; color:#f59e0b; display:flex; align-items:center; gap:8px;">🚀 Enforce Mandatory Fleet Update</h3>
+        <button class="modal-close-btn" onclick="closeForceUpdateModal()">✕</button>
+      </div>
+      <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+        Lock all connected PinPulse Android devices to the <strong>Mandatory Update Screen</strong> until they install the specified version. Devices will pre-download the APK silently in the background.
+      </p>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:0.75rem; color:#cbd5e1; display:block; margin-bottom:6px; font-weight:700;">Required Minimum Version</label>
+        <input type="text" id="fu-min-version" class="search-input" placeholder="e.g. 3.2" style="font-size:1rem; padding:10px 14px; font-weight:bold; color:var(--primary);" />
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="font-size:0.75rem; color:#cbd5e1; display:block; margin-bottom:6px; font-weight:700;">Update Reason / Advisory Note</label>
+        <input type="text" id="fu-reason" class="search-input" placeholder="e.g. Critical security & real-time radar upgrade" style="font-size:0.85rem; padding:8px 12px;" />
+      </div>
+      <div style="display:flex; gap:10px; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+        <button class="crm-btn danger" onclick="broadcastClearForceUpdate()" style="padding:9px 14px; font-weight:700;">❌ Clear Lock</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-admin" onclick="closeForceUpdateModal()">Cancel</button>
+          <button class="btn-admin accent-btn" style="background:#f59e0b; color:#000; font-weight:900;" onclick="broadcastMandatoryUpdate()">🚀 Enforce Update Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ACCESSIBILITY & DISPLAY DIALOG ==================== -->
+  <div id="a11y-dialog" role="dialog" aria-modal="true" aria-labelledby="a11y-title" onclick="handleDialogBackdrop(event)">
+    <div class="a11y-box">
+      <div class="a11y-header">
+        <h2 id="a11y-title">♿ Accessibility & Tactical Display</h2>
+        <button class="modal-close-btn" onclick="closeA11yDialog()" aria-label="Close settings">✕</button>
+      </div>
+
+      <!-- Section 1: Themes & Contrast -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Color Theme & Visual Contrast</div>
+        <div class="a11y-options-grid">
+          <button class="a11y-choice-btn selected" id="theme-btn-dark" onclick="setTheme('dark')">Tactical Dark</button>
+          <button class="a11y-choice-btn" id="theme-btn-high-contrast" onclick="setTheme('high-contrast')">High Contrast (AAA)</button>
+          <button class="a11y-choice-btn" id="theme-btn-daylight" onclick="setTheme('daylight')">Daylight White</button>
+          <button class="a11y-choice-btn" id="theme-btn-night-amber" onclick="setTheme('night-amber')">Night Amber</button>
+        </div>
+      </div>
+
+      <!-- Section 2: Text Size Scaling -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Interface & Text Scaling</div>
+        <div class="a11y-options-grid">
+          <button class="a11y-choice-btn selected" id="scale-btn-100" onclick="setFontScale(1)">100% Standard</button>
+          <button class="a11y-choice-btn" id="scale-btn-115" onclick="setFontScale(1.15)">115% Medium</button>
+          <button class="a11y-choice-btn" id="scale-btn-130" onclick="setFontScale(1.30)">130% Large</button>
+          <button class="a11y-choice-btn" id="scale-btn-150" onclick="setFontScale(1.50)">150% X-Large</button>
+        </div>
+      </div>
+
+      <!-- Section 3: Colorblind Palette Support -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Colorblind Safe Filter</div>
+        <div class="a11y-options-grid">
+          <button class="a11y-choice-btn selected" id="cb-btn-none" onclick="setColorblindFilter('none')">Standard</button>
+          <button class="a11y-choice-btn" id="cb-btn-protanopia" onclick="setColorblindFilter('protanopia')">Protanopia</button>
+          <button class="a11y-choice-btn" id="cb-btn-deuteranopia" onclick="setColorblindFilter('deuteranopia')">Deuteranopia</button>
+          <button class="a11y-choice-btn" id="cb-btn-tritanopia" onclick="setColorblindFilter('tritanopia')">Tritanopia</button>
+          <button class="a11y-choice-btn" id="cb-btn-mono" onclick="setColorblindFilter('mono')">Monochrome</button>
+        </div>
+      </div>
+
+      <!-- Section 4: Map Marker Presentation -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Map Marker Density & Style</div>
+        <div class="a11y-options-grid">
+          <button class="a11y-choice-btn selected" id="marker-btn-full" onclick="setMarkerStyle('full')">Full Avatar</button>
+          <button class="a11y-choice-btn" id="marker-btn-dot" onclick="setMarkerStyle('dot')">Discreet Dots</button>
+        </div>
+      </div>
+
+      <!-- Section 5: Motion & Sensory Toggles -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Sensory & Motion Preferences</div>
+        <div class="a11y-toggle-row">
+          <div class="a11y-toggle-lbl">
+            <span class="a11y-toggle-name">Reduce Motion & Animations</span>
+            <span class="a11y-toggle-desc">Disables pulsing rings and transitions for vestibular comfort.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-reduce-motion" onchange="toggleReduceMotion(this.checked)" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="a11y-toggle-row" style="margin-top: 6px;">
+          <div class="a11y-toggle-lbl">
+            <span class="a11y-toggle-name">Auditory Cues & Sounds</span>
+            <span class="a11y-toggle-desc">Play synthesized audio chimes for GPS packets and alarms.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="toggle-audio-cues" onchange="toggleAudioCues(this.checked)" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Section 6: Units of Measurement -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Telemetry Units</div>
+        <div class="a11y-options-grid">
+          <button class="a11y-choice-btn selected" id="unit-btn-metric" onclick="setUnits('metric')">Metric (km/h)</button>
+          <button class="a11y-choice-btn" id="unit-btn-imperial" onclick="setUnits('imperial')">Imperial (mph)</button>
+        </div>
+      </div>
+
+      <!-- Section 7: Keyboard Shortcuts Cheat Sheet -->
+      <div class="a11y-section">
+        <div class="a11y-section-title">Keyboard Shortcuts</div>
+        <table class="kbd-table">
+          <tr><td><kbd>/</kbd></td><td>Focus search bar</td></tr>
+          <tr><td><kbd>Alt</kbd> + <kbd>A</kbd></td><td>Toggle Accessibility & Settings</td></tr>
+          <tr><td><kbd>Alt</kbd> + <kbd>M</kbd></td><td>Emergency Fleet Silence (Stop Sirens)</td></tr>
+          <tr><td><kbd>Alt</kbd> + <kbd>F</kbd></td><td>Auto-fit all units on map</td></tr>
+          <tr><td><kbd>1</kbd> - <kbd>4</kbd></td><td>Switch Admin Tabs (Nodes, Quarantine, Logs, Diag)</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close inspector / modal dialog</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT LOGIC ==================== -->
+  <script>
+    // ---------- State Variables ----------
+    var users = {};
+    var markers = {};
+    var selectedUserId = null;
+    var client = null;
+    var map = null;
+    var currentLayer = null;
+    var legsLayer = null;
+    var currentFilter = 'all';
+    var totalPacketsReceived = 0;
+    var auditLogs = [];
+    var pingStartTime = 0;
+
+    var REMOVED_KEY = 'pinpulse_master_removed_v1';
+    var A11Y_KEY = 'pinpulse_admin_a11y_v1';
+    var CRM_USERS_KEY = 'pinpulse_admin_crm_users_v1';
+    var ADMIN_POLICIES_KEY = 'pinpulse_admin_policies_v1';
+    var DELETED_USERS_KEY = 'pinpulse_admin_deleted_v1';
+
+    var removedIds = loadRemoved();
+    var a11ySettings = loadA11y();
+    var adminPolicies = loadAdminPolicies();
+    var deletedUserIds = loadDeletedUsers();
+    var currentWorkspaceView = 'map';
+
+    var PACK_PRESETS = {
+      DEMO:     { plan: 'DEMO',     maxFriends: 1,   maxGroups: 0,  monthlyRateUsd: 0.00,  rateLimitSec: 5, defaultDays: 7 },
+      FAMILY:   { plan: 'FAMILY',   maxFriends: 10,  maxGroups: 2,  monthlyRateUsd: 9.99,  rateLimitSec: 3, defaultDays: 30 },
+      BUSINESS: { plan: 'BUSINESS', maxFriends: 50,  maxGroups: 10, monthlyRateUsd: 29.99, rateLimitSec: 2, defaultDays: 30 },
+      CUSTOM:   { plan: 'CUSTOM',   maxFriends: 100, maxGroups: 25, monthlyRateUsd: 49.99, rateLimitSec: 1, defaultDays: 30 }
+    };
+
+    // Map Layers
+    var layers = {
+      streets: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { subdomains: ['0','1','2','3'], maxZoom: 20 }),
+      satellite: L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { subdomains: ['0','1','2','3'], maxZoom: 20 }),
+      hybrid: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { subdomains: ['0','1','2','3'], maxZoom: 20 }),
+      night: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 })
+    };
+
+    // Relay list
+    var brokerList = [
+      { name: 'EMQX Primary', url: 'wss://broker.emqx.io:8084/mqtt' },
+      { name: 'HiveMQ Backup', url: 'wss://broker.hivemq.com:8884/mqtt' }
+    ];
+    var currentBrokerIdx = 0;
+
+    // Web Audio Synthesizer
+    var audioCtx = null;
+    function getAudioCtx() {
+      if (!audioCtx) {
+        try {
+          var AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContext();
+        } catch (e) {}
+      }
+      return audioCtx;
+    }
+
+    function playTone(freq, type, durationMs) {
+      if (!a11ySettings.audioCues) return;
+      try {
+        var ctx = getAudioCtx();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') ctx.resume();
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (durationMs / 1000));
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + (durationMs / 1000));
+      } catch (e) {}
+    }
+
+    // ---------- Storage Helpers ----------
+    function loadRemoved() {
+      try { return JSON.parse(localStorage.getItem(REMOVED_KEY)) || {}; } catch (e) { return {}; }
+    }
+    function saveRemoved() {
+      try { localStorage.setItem(REMOVED_KEY, JSON.stringify(removedIds)); } catch (e) {}
+    }
+    function loadAdminPolicies() {
+      try { return JSON.parse(localStorage.getItem(ADMIN_POLICIES_KEY)) || {}; } catch (e) { return {}; }
+    }
+    function saveAdminPolicies() {
+      try { localStorage.setItem(ADMIN_POLICIES_KEY, JSON.stringify(adminPolicies)); } catch (e) {}
+    }
+    function loadDeletedUsers() {
+      try { return JSON.parse(localStorage.getItem(DELETED_USERS_KEY)) || {}; } catch (e) { return {}; }
+    }
+    function saveDeletedUsers() {
+      try { localStorage.setItem(DELETED_USERS_KEY, JSON.stringify(deletedUserIds)); } catch (e) {}
+    }
+    function loadCachedCrmUsers() {
+      try {
+        var cached = JSON.parse(localStorage.getItem(CRM_USERS_KEY)) || {};
+        Object.keys(cached).forEach(function(id) {
+          if (!deletedUserIds[id]) {
+            users[id] = applyAdminPolicyToUserObj(cached[id]);
+          }
+        });
+      } catch (e) {}
+    }
+    function saveCachedCrmUsers() {
+      try {
+        var compact = {};
+        Object.keys(users).forEach(function(id) {
+          if (deletedUserIds[id]) return;
+          var u = users[id];
+          compact[id] = {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            friendCode: u.friendCode,
+            lat: u.lat,
+            lng: u.lng,
+            speed: u.speed,
+            batteryPercent: u.batteryPercent,
+            isCharging: u.isCharging,
+            isSharing: u.isSharing,
+            isGpsEnabled: u.isGpsEnabled,
+            timestamp: u.timestamp,
+            subscriptionPlan: u.subscriptionPlan,
+            accountStatus: u.accountStatus,
+            subscriptionStartAt: u.subscriptionStartAt,
+            subscriptionExpiresAt: u.subscriptionExpiresAt,
+            maxFriends: u.maxFriends,
+            maxGroups: u.maxGroups,
+            rateLimitSec: u.rateLimitSec,
+            monthlyRateUsd: u.monthlyRateUsd,
+            friendsCount: u.friendsCount,
+            groupsCount: u.groupsCount,
+            statusMessage: u.statusMessage || ''
+          };
+        });
+        localStorage.setItem(CRM_USERS_KEY, JSON.stringify(compact));
+      } catch (e) {}
+    }
+
+    function loadA11y() {
+      var defaults = {
+        theme: 'dark',
+        fontScale: 1,
+        colorblind: 'none',
+        markerStyle: 'full',
+        reduceMotion: false,
+        audioCues: true,
+        units: 'metric'
+      };
+      try {
+        var s = JSON.parse(localStorage.getItem(A11Y_KEY));
+        return Object.assign(defaults, s || {});
+      } catch (e) {
+        return defaults;
+      }
+    }
+    function saveA11y() {
+      try { localStorage.setItem(A11Y_KEY, JSON.stringify(a11ySettings)); } catch (e) {}
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    function isRemoved(id) { return !!removedIds[id]; }
+    function isLiveUser(u) { return !!u.timestamp && (Date.now() - u.timestamp < 90000); }
+    function hasValidPos(u) { return !(isNaN(u.lat) || isNaN(u.lng) || (u.lat === 0 && u.lng === 0)); }
+
+    function formatSpeed(speedKmh) {
+      if (a11ySettings.units === 'imperial') {
+        var mph = Math.round(speedKmh * 0.621371);
+        return mph + ' mph';
+      }
+      return Math.round(speedKmh) + ' km/h';
+    }
+
+    function batteryText(u) {
+      return (typeof u.batteryPercent === 'number') ? (u.batteryPercent + '%' + (u.isCharging ? ' ⚡' : '')) : '--';
+    }
+
+    function avatarHtml(u) {
+      return (u.avatar && u.avatar.length > 10)
+        ? '<img src="' + esc(u.avatar) + '" alt="' + esc(u.name) + '" />'
+        : esc((u.name || '?').charAt(0).toUpperCase());
+    }
+
+    var LIFETIME_EXPIRES_AT = 4102444800000; // Jan 1, 2100 (Permanent Lifetime Access)
+
+    function isLifetimeUser(u) {
+      if (!u) return false;
+      return !!(u.isLifetime || (u.subscriptionExpiresAt && u.subscriptionExpiresAt >= 3000000000000));
+    }
+
+    function formatRemainingDays(u) {
+      if (!u) return '7d 0h left';
+      if (u.accountStatus === 'BANNED') return 'Banned';
+      if (u.accountStatus === 'DEACTIVATED') return 'Paused (Unpaid)';
+      if (isLifetimeUser(u)) return '♾️ Lifetime Access';
+      var exp = u.subscriptionExpiresAt || (Date.now() + 7 * 86400000);
+      var diff = exp - Date.now();
+      if (diff <= 0) return '0d (Expired)';
+      var days = Math.floor(diff / 86400000);
+      if (days >= 3650) return '♾️ Lifetime Access';
+      var hours = Math.floor((diff % 86400000) / 3600000);
+      if (days > 0) return days + 'd ' + hours + 'h left';
+      var mins = Math.max(1, Math.floor((diff % 3600000) / 60000));
+      return hours + 'h ' + mins + 'm left';
+    }
+
+    function getRemainingDaysCount(u) {
+      if (isLifetimeUser(u)) return 99999;
+      var exp = (u && u.subscriptionExpiresAt) ? u.subscriptionExpiresAt : (Date.now() + 7 * 86400000);
+      return Math.max(0, Math.ceil((exp - Date.now()) / 86400000));
+    }
+
+    function getEffectiveAccountStatus(u) {
+      if (!u) return 'ACTIVE';
+      var st = (u.accountStatus || 'ACTIVE').toUpperCase();
+      if (st === 'BANNED' || st === 'DEACTIVATED' || st === 'DELETED') return st;
+      if (isLifetimeUser(u)) return 'ACTIVE';
+      if (u.subscriptionExpiresAt && Date.now() > u.subscriptionExpiresAt) return 'EXPIRED';
+      return 'ACTIVE';
+    }
+
+    // ---------- Automatic Duplicate Account Prevention & Cleanup ----------
+    function isSameAccountIdentity(a, b) {
+      if (!a || !b || a.id === b.id) return false;
+      var emailA = (a.email || '').trim().toLowerCase();
+      var emailB = (b.email || '').trim().toLowerCase();
+      if (emailA && emailB && emailA !== 'no email' && emailA.indexOf('@') !== -1 && emailA === emailB) {
+        return true;
+      }
+      var codeA = (a.friendCode || '').trim().toUpperCase();
+      var codeB = (b.friendCode || '').trim().toUpperCase();
+      if (codeA && codeB && codeA !== '----' && codeA.length >= 4 && codeA === codeB) {
+        return true;
+      }
+      var nameA = (a.name || '').trim().toLowerCase();
+      var nameB = (b.name || '').trim().toLowerCase();
+      var isGenericA = !nameA || nameA.indexOf('unit ') === 0 || nameA.indexOf('user ') === 0 || nameA === 'user';
+      if (!isGenericA && nameA === nameB) {
+        if (emailA === 'no email' || emailB === 'no email' || emailA === emailB) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function purgeOldDuplicateAccount(oldId, winner) {
+      if (!oldId || (winner && oldId === winner.id)) return;
+      // Migrate any existing paid/custom/lifetime policy from old duplicate to the newest account
+      if (winner && adminPolicies[oldId] && !adminPolicies[winner.id]) {
+        adminPolicies[winner.id] = Object.assign({}, adminPolicies[oldId], {
+          targetUserId: winner.id,
+          targetFriendCode: winner.friendCode || adminPolicies[oldId].targetFriendCode || '',
+          targetEmail: winner.email || adminPolicies[oldId].targetEmail || ''
+        });
+        saveAdminPolicies();
+      }
+      deletedUserIds[oldId] = Date.now();
+      saveDeletedUsers();
+      removeMarker(oldId);
+      delete users[oldId];
+      if (selectedUserId === oldId) {
+        selectedUserId = winner ? winner.id : null;
+      }
+      // Clear stale retained MQTT topics on broker so the duplicate never comes back
+      if (client && client.connected) {
+        try {
+          client.publish('pinpulse/v1/user/' + oldId + '/loc', '', { qos: 0, retain: true });
+          client.publish('pinpulse/v1/registry/user/' + oldId, '', { qos: 1, retain: true });
+        } catch (e) {}
+      }
+    }
+
+    /**
+     * Checks if an incoming user object is a duplicate of any existing user in `users`.
+     * - If incoming is OLDER than an existing duplicate, returns false (rejects incoming and purges its oldId).
+     * - If incoming is NEWER than existing duplicate(s), purges the old duplicate(s) and returns true.
+     */
+    function guardAgainstDuplicateAccount(candidate) {
+      if (!candidate || !candidate.id) return false;
+      var existingList = Object.values(users);
+      for (var i = 0; i < existingList.length; i++) {
+        var other = existingList[i];
+        if (!other || other.id === candidate.id) continue;
+        if (isSameAccountIdentity(candidate, other)) {
+          var candTime = candidate.timestamp || 0;
+          var otherTime = other.timestamp || 0;
+          if (candTime >= otherTime) {
+            // Candidate is newer -> purge the older duplicate
+            purgeOldDuplicateAccount(other.id, candidate);
+            addAuditEntry('🧹 Auto-removed old duplicate account for ' + candidate.name + ' (' + other.id.substring(0, 8) + ' -> ' + candidate.id.substring(0, 8) + ')', 'normal');
+          } else {
+            // Candidate is an older stale duplicate -> reject it immediately
+            purgeOldDuplicateAccount(candidate.id, other);
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function deduplicateUsers(showAlert) {
+      var list = Object.values(users).sort(function(a, b) {
+        return (b.timestamp || 0) - (a.timestamp || 0);
+      });
+      var kept = [];
+      var removedCount = 0;
+
+      for (var i = 0; i < list.length; i++) {
+        var u = list[i];
+        if (!u || deletedUserIds[u.id]) continue;
+        var dupWinner = null;
+        for (var k = 0; k < kept.length; k++) {
+          if (isSameAccountIdentity(u, kept[k])) {
+            dupWinner = kept[k];
+            break;
+          }
+        }
+        if (dupWinner) {
+          purgeOldDuplicateAccount(u.id, dupWinner);
+          dupWinner = applyAdminPolicyToUserObj(dupWinner);
+          users[dupWinner.id] = dupWinner;
+          removedCount++;
+        } else {
+          kept.push(u);
+        }
+      }
+
+      if (removedCount > 0 || showAlert) {
+        saveCachedCrmUsers();
+        Object.values(users).forEach(updateMarker);
+        layoutMarkers();
+        renderUserList();
+        renderCrmTable();
+        updateTopTicker();
+      }
+      if (showAlert) {
+        alert(removedCount > 0
+          ? ('🧹 Removed ' + removedCount + ' old duplicate account(s)! Only the newest active account for each user is kept.')
+          : '✅ No duplicate accounts found. Every user on the dashboard is unique.');
+      }
+      return removedCount;
+    }
+
+    function applyAdminPolicyToUserObj(u) {
+      if (!u || !u.id) return u;
+      var pol = adminPolicies[u.id] || (u.friendCode && adminPolicies[u.friendCode]) || null;
+      var plan = ((pol && pol.subscriptionPlan) || u.subscriptionPlan || 'DEMO').toUpperCase();
+      var preset = PACK_PRESETS[plan] || PACK_PRESETS.DEMO;
+
+      u.subscriptionPlan = plan;
+      u.accountStatus = ((pol && pol.accountStatus) || u.accountStatus || 'ACTIVE').toUpperCase();
+      u.subscriptionStartAt = (pol && pol.subscriptionStartAt) || u.subscriptionStartAt || Date.now();
+      u.subscriptionExpiresAt = (pol && pol.subscriptionExpiresAt) || u.subscriptionExpiresAt || (u.subscriptionStartAt + preset.defaultDays * 86400000);
+      u.maxFriends = (pol && pol.maxFriends !== undefined) ? pol.maxFriends : (u.maxFriends !== undefined ? u.maxFriends : preset.maxFriends);
+      u.maxGroups = (pol && pol.maxGroups !== undefined) ? pol.maxGroups : (u.maxGroups !== undefined ? u.maxGroups : preset.maxGroups);
+      u.rateLimitSec = (pol && pol.rateLimitSec !== undefined) ? pol.rateLimitSec : (u.rateLimitSec || preset.rateLimitSec);
+      u.monthlyRateUsd = (pol && pol.monthlyRateUsd !== undefined) ? pol.monthlyRateUsd : (u.monthlyRateUsd !== undefined ? u.monthlyRateUsd : preset.monthlyRateUsd);
+      u.friendsCount = u.friendsCount || 0;
+      u.groupsCount = u.groupsCount || 0;
+      if (u.isGpsEnabled === undefined) u.isGpsEnabled = true;
+      return u;
+    }
+
+    function getUser(id) {
+      if (users[id]) return users[id];
+      var s = removedIds[id];
+      if (!s) return null;
+      return applyAdminPolicyToUserObj({
+        id: id,
+        name: s.name || 'User ' + id.substring(0, 5),
+        email: s.email || 'No email',
+        friendCode: s.friendCode || '----',
+        avatar: null,
+        lat: NaN, lng: NaN,
+        speed: 0,
+        batteryPercent: s.batteryPercent,
+        isCharging: false,
+        isSharing: true,
+        isGpsEnabled: s.isGpsEnabled !== false,
+        timestamp: s.lastSeen || 0,
+        snapshotOnly: true
+      });
+    }
+
+    function snapshotOf(u) {
+      return {
+        name: u.name,
+        email: u.email,
+        friendCode: u.friendCode,
+        batteryPercent: u.batteryPercent,
+        isGpsEnabled: u.isGpsEnabled,
+        lastSeen: u.timestamp,
+        removedAt: Date.now()
+      };
+    }
+
+    // ---------- Workspace View Switcher (Map vs SaaS CRM vs Friends Network) ----------
+    function switchMainWorkspaceView(view) {
+      currentWorkspaceView = view;
+      var crmEl = document.getElementById('crm-view');
+      var friendsEl = document.getElementById('friends-view');
+      var btnMap = document.getElementById('btn-view-map');
+      var btnCrm = document.getElementById('btn-view-crm');
+      var btnFriends = document.getElementById('btn-view-friends');
+
+      if (view === 'crm') {
+        if (crmEl) { crmEl.classList.add('open'); crmEl.classList.add('active'); }
+        if (friendsEl) { friendsEl.classList.remove('open'); friendsEl.classList.remove('active'); }
+        if (btnCrm) { btnCrm.classList.add('active'); btnCrm.style.background = 'var(--primary)'; btnCrm.style.color = '#000'; }
+        if (btnMap) { btnMap.classList.remove('active'); btnMap.style.background = ''; btnMap.style.color = ''; }
+        if (btnFriends) { btnFriends.classList.remove('active'); btnFriends.style.background = ''; btnFriends.style.color = ''; }
+        renderCrmTable();
+      } else if (view === 'friends') {
+        if (crmEl) { crmEl.classList.remove('open'); crmEl.classList.remove('active'); }
+        if (friendsEl) { friendsEl.classList.add('open'); friendsEl.classList.add('active'); }
+        if (btnFriends) { btnFriends.classList.add('active'); btnFriends.style.background = 'var(--primary)'; btnFriends.style.color = '#000'; }
+        if (btnMap) { btnMap.classList.remove('active'); btnMap.style.background = ''; btnMap.style.color = ''; }
+        if (btnCrm) { btnCrm.classList.remove('active'); btnCrm.style.background = ''; btnCrm.style.color = ''; }
+        populatePairSelectors();
+        renderFriendsDirectory();
+      } else {
+        // Map view
+        if (crmEl) { crmEl.classList.remove('open'); crmEl.classList.remove('active'); }
+        if (friendsEl) { friendsEl.classList.remove('open'); friendsEl.classList.remove('active'); }
+        if (btnMap) { btnMap.classList.add('active'); btnMap.style.background = 'var(--primary)'; btnMap.style.color = '#000'; }
+        if (btnCrm) { btnCrm.classList.remove('active'); btnCrm.style.background = ''; btnCrm.style.color = ''; }
+        if (btnFriends) { btnFriends.classList.remove('active'); btnFriends.style.background = ''; btnFriends.style.color = ''; }
+        setTimeout(function() { if (map) map.invalidateSize(); }, 150);
+      }
+    }
+
+    // ---------- Initialization ----------
+    window.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      applyA11ySettings();
+      loadCachedCrmUsers();
+      deduplicateUsers(false);
+
+      map = L.map('map', {
+        center: [36.8065, 10.1815],
+        zoom: 12,
+        zoomControl: false
+      });
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      currentLayer = layers.streets;
+      currentLayer.addTo(map);
+      legsLayer = L.layerGroup().addTo(map);
+
+      setTimeout(function() { if (map) map.invalidateSize(); }, 300);
+
+      map.on('click', function() {
+        closeModal();
+      });
+
+      map.on('mousemove', function(e) {
+        document.getElementById('hud-lat').textContent = e.latlng.lat.toFixed(6);
+        document.getElementById('hud-lng').textContent = e.latlng.lng.toFixed(6);
+      });
+
+      map.on('zoomend', function() {
+        document.getElementById('hud-zoom').textContent = map.getZoom();
+        layoutMarkers();
+      });
+
+      Object.values(users).forEach(updateMarker);
+      layoutMarkers();
+      connectMqtt();
+      setupSearch();
+      setupKeyboardShortcuts();
+      renderUserList();
+      renderCrmTable();
+      updateTopTicker();
+
+      setInterval(function() {
+        Object.values(users).forEach(updateMarker);
+        layoutMarkers();
+        renderUserList();
+        updateTopTicker();
+        if (currentWorkspaceView === 'crm') {
+          renderCrmTable();
+        }
+        if (selectedUserId) {
+          var su = getUser(selectedUserId);
+          if (su) showUserModal(su);
+        }
+      }, 2000);
+    }
+
+    function setMapLayer(name, btn) {
+      document.querySelectorAll('.style-btn').forEach(function(b) { b.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      map.removeLayer(currentLayer);
+      currentLayer = layers[name];
+      currentLayer.addTo(map);
+    }
+
+    // ---------- MQTT Uplink ----------
+    function connectMqtt() {
+      var broker = brokerList[currentBrokerIdx];
+      var clientId = 'pinpulse_admin_' + Math.random().toString(16).substring(2, 9);
+
+      document.getElementById('tk-relay-status').textContent = 'Connecting (' + broker.name + ')...';
+      document.getElementById('diag-broker-name').textContent = broker.name;
+
+      pingStartTime = Date.now();
+
+      client = mqtt.connect(broker.url, {
+        clientId: clientId,
+        clean: true,
+        keepalive: 20,
+        reconnectPeriod: 2500,
+        connectTimeout: 8000
+      });
+
+      client.on('connect', function() {
+        var latency = Math.max(8, Date.now() - pingStartTime);
+        document.getElementById('tk-relay-status').textContent = broker.name + ' • ' + latency + 'ms';
+        document.getElementById('tk-relay-status').style.color = 'var(--primary)';
+        document.getElementById('diag-ping').textContent = latency + ' ms';
+        addAuditEntry('Connected to live broker ' + broker.name, 'connect');
+        playTone(600, 'sine', 150);
+
+        // Wildcard subscriptions to monitor all global fleet nodes + retained user registry + admin policies
+        client.subscribe('pinpulse/v1/admin/broadcast/force_update', { qos: 1 });
+        toggleAdminLiveFleetWatch(true);
+        client.subscribe('pinpulse/v1/user/+/loc', { qos: 1 });
+        client.subscribe('pinpulse/v1/registry/friends/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/registry/friends/#', { qos: 1 });
+        client.subscribe('pinpulse/v1/network/live', { qos: 0 });
+        client.subscribe('pinpulse/v1/user/+/status', { qos: 1 });
+        client.subscribe('pinpulse/v1/registry/user/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/registry/code/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/code/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/accounts/+/backup', { qos: 1 });
+        client.subscribe('pinpulse/v1/admin/users/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/alerts/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/ring/+', { qos: 1 });
+      });
+
+      client.on('error', function(err) {
+        console.warn('MQTT Error:', err);
+        document.getElementById('tk-relay-status').textContent = 'Relay Error';
+        document.getElementById('tk-relay-status').style.color = 'var(--danger)';
+        addAuditEntry('Broker error: ' + err.message, 'alarm');
+      });
+
+      client.on('message', function(topic, payload) {
+        totalPacketsReceived++;
+        document.getElementById('diag-pkt-count').textContent = totalPacketsReceived;
+
+        var raw = payload ? payload.toString() : '';
+        if (!raw || raw.trim() === '') return;
+
+        try {
+          var data = JSON.parse(raw);
+          if (topic.indexOf('/registry/friends/') !== -1) {
+            handleFriendsRegistryPacket(topic, data);
+          } else if (topic.indexOf('/admin/users/') !== -1) {
+            handleAdminPolicySync(topic, data);
+          } else if (topic.indexOf('/registry/user/') !== -1 || topic.indexOf('/accounts/') !== -1) {
+            handleRegistryOrBackupPacket(topic, data);
+          } else if (topic.indexOf('/status') !== -1) {
+            handleStatusUpdate(data);
+          } else if (data.type === 'SOS_EMERGENCY') {
+            handleSosEmergencyPacket(topic, data);
+          } else if (topic.indexOf('/ring/') !== -1 || (data.type && data.type.indexOf('RING') !== -1)) {
+            handleRingEvent(topic, data);
+          } else if (topic.indexOf('/registry/code/') !== -1 || topic.indexOf('/code/') !== -1) {
+            handleRegistryOrBackupPacket(topic, data);
+          } else if ((data.userId || data.id) && (data.latitude !== undefined || data.lat !== undefined || data.displayName !== undefined || data.name !== undefined || data.userName !== undefined)) {
+            handleUserPacket(data);
+          }
+        } catch (e) {
+          console.error('Parse error on payload:', e);
+        }
+      });
+    }
+
+    function forceBrokerSwitch(idx) {
+      if (client) {
+        try { client.end(true); } catch (e) {}
+      }
+      currentBrokerIdx = idx;
+      connectMqtt();
+    }
+
+    function handleAdminPolicySync(topic, data) {
+      if (!data) return;
+      var targetId = data.targetUserId || topic.split('/').pop();
+      if (!targetId) return;
+
+      if (data.accountStatus === 'DELETED' || data.action === 'DELETE_ACCOUNT') {
+        deletedUserIds[targetId] = Date.now();
+        saveDeletedUsers();
+        if (users[targetId]) {
+          removeMarker(targetId);
+          delete users[targetId];
+          saveCachedCrmUsers();
+          renderUserList();
+          renderCrmTable();
+          updateTopTicker();
+        }
+        return;
+      }
+
+      adminPolicies[targetId] = Object.assign(adminPolicies[targetId] || {}, data);
+      saveAdminPolicies();
+
+      if (users[targetId]) {
+        users[targetId] = applyAdminPolicyToUserObj(users[targetId]);
+        saveCachedCrmUsers();
+        updateMarker(users[targetId]);
+        renderUserList();
+        renderCrmTable();
+        updateTopTicker();
+        if (selectedUserId === targetId) showUserModal(users[targetId]);
+      }
+    }
+
+    function handleRegistryOrBackupPacket(topic, data) {
+      var uData = (data && data.user) ? data.user : data;
+      if (!uData) return;
+      var id = uData.id || uData.userId;
+      if (!id) return;
+      if (deletedUserIds[id] && (!adminPolicies[id] || adminPolicies[id].accountStatus === 'DELETED')) return;
+
+      var existing = users[id] || {};
+      var friendsCount = Array.isArray(data.friends) ? data.friends.filter(function(f) { return f.status === 'ACCEPTED'; }).length : (uData.friendsCount || existing.friendsCount || 0);
+      var groupsCount = Array.isArray(data.groups) ? data.groups.length : (uData.groupsCount || existing.groupsCount || 0);
+
+      var candidateObj = applyAdminPolicyToUserObj({
+        id: id,
+        name: uData.displayName || existing.name || ('User ' + id.substring(0, 5)),
+        email: uData.email || existing.email || 'No email',
+        friendCode: uData.friendCode || existing.friendCode || '----',
+        avatar: uData.avatarBase64 || existing.avatar || null,
+        lat: (uData.latitude && uData.latitude !== 0) ? parseFloat(uData.latitude) : (existing.lat !== undefined ? existing.lat : NaN),
+        lng: (uData.longitude && uData.longitude !== 0) ? parseFloat(uData.longitude) : (existing.lng !== undefined ? existing.lng : NaN),
+        speed: uData.speedKmh !== undefined ? uData.speedKmh : (existing.speed || 0),
+        batteryPercent: uData.batteryPercent !== undefined ? uData.batteryPercent : (existing.batteryPercent !== undefined ? existing.batteryPercent : 100),
+        isCharging: uData.isCharging !== undefined ? !!uData.isCharging : !!existing.isCharging,
+        isSharing: uData.isSharingLocation !== undefined ? !!uData.isSharingLocation : (existing.isSharing !== false),
+        isGpsEnabled: uData.isGpsEnabled !== undefined ? !!uData.isGpsEnabled : (existing.isGpsEnabled !== false),
+        timestamp: uData.lastUpdated || existing.timestamp || 0,
+        subscriptionPlan: uData.subscriptionPlan || existing.subscriptionPlan || 'DEMO',
+        accountStatus: uData.accountStatus || existing.accountStatus || 'ACTIVE',
+        subscriptionStartAt: uData.subscriptionStartAt || existing.subscriptionStartAt || Date.now(),
+        subscriptionExpiresAt: uData.subscriptionExpiresAt || existing.subscriptionExpiresAt || (Date.now() + 7 * 86400000),
+        maxFriends: uData.maxFriends !== undefined ? uData.maxFriends : existing.maxFriends,
+        maxGroups: uData.maxGroups !== undefined ? uData.maxGroups : existing.maxGroups,
+        rateLimitSec: uData.rateLimitSec || existing.rateLimitSec || 5,
+        monthlyRateUsd: uData.monthlyRateUsd !== undefined ? uData.monthlyRateUsd : existing.monthlyRateUsd,
+        friendsCount: friendsCount,
+        groupsCount: groupsCount,
+        statusMessage: (uData.statusMessage !== undefined ? uData.statusMessage : (existing.statusMessage || '')).trim()
+      });
+
+      if (!guardAgainstDuplicateAccount(candidateObj)) return;
+      users[id] = applyAdminPolicyToUserObj(candidateObj);
+
+      saveCachedCrmUsers();
+      updateMarker(users[id]);
+      layoutMarkers();
+      renderUserList();
+      renderCrmTable();
+      updateTopTicker();
+    }
+
+    function handleSosEmergencyPacket(topic, data) {
+      var sender = data.senderName || 'Unit';
+      var lat = parseFloat(data.latitude || 0);
+      var lng = parseFloat(data.longitude || 0);
+      var bat = data.batteryPercent !== undefined ? data.batteryPercent : '--';
+      addAuditEntry('🆘 SOS EMERGENCY BROADCAST from ' + sender + ' (' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' • Bat ' + bat + '%)', 'alarm');
+      playTone(920, 'sawtooth', 600);
+      var alertEl = document.getElementById('tk-siren-alert');
+      if (alertEl) {
+        alertEl.style.display = 'flex';
+        alertEl.innerHTML = '<span class="ticker-dot red"></span><span class="ticker-val" style="color: #f87171;">🆘 SOS: ' + esc(sender) + ' (' + bat + '%)</span>';
+      }
+      if (data.senderId && users[data.senderId]) {
+        selectUser(data.senderId);
+      }
+    }
+
+    function handleRingEvent(topic, data) {
+      var type = data.type || '';
+      var caller = data.callerName || 'Unknown Operator';
+      if (type === 'STOP_RING' || type === 'STOP_SIREN') {
+        addAuditEntry('🛑 Emergency STOP_RING received from ' + caller + ' on ' + topic, 'silence');
+        playTone(400, 'triangle', 250);
+        document.getElementById('tk-siren-alert').style.display = 'none';
+      } else {
+        addAuditEntry('🚨 EMERGENCY SIREN triggered by ' + caller + ' on ' + topic, 'alarm');
+        playTone(880, 'sawtooth', 400);
+        document.getElementById('tk-siren-alert').style.display = 'flex';
+      }
+    }
+
+    function handleStatusUpdate(data) {
+      if (!data) return;
+      var id = data.userId || data.id || data.senderId;
+      if (!id || deletedUserIds[id]) return;
+      if (!users[id]) {
+        users[id] = applyAdminPolicyToUserObj({
+          id: id,
+          name: data.displayName || data.name || data.senderName || ('User ' + id.substring(0, 5)),
+          email: data.email || 'No email',
+          friendCode: data.friendCode || '----',
+          accountStatus: data.accountStatus || 'ACTIVE',
+          subscriptionPlan: data.subscriptionPlan || data.plan || 'DEMO',
+          statusMessage: (data.statusMessage || '').trim(),
+          timestamp: data.timestamp || Date.now(),
+          isSharing: true,
+          isGpsEnabled: data.isGpsEnabled !== false
+        });
+      }
+      if (users[id]) {
+        if (data.statusMessage !== undefined) {
+          users[id].statusMessage = String(data.statusMessage || '').trim();
+        }
+        if (data.isGpsEnabled !== undefined) {
+          users[id].isGpsEnabled = !!data.isGpsEnabled;
+        }
+        if (data.status === 'OFFLINE' || data.type === 'PHONE_OFFLINE') {
+          users[id].isSharing = false;
+          addAuditEntry('Device offline: ' + users[id].name + ' (' + id.substring(0, 8) + ')', 'normal');
+        } else if (data.type === 'GPS_STATUS_CHANGED') {
+          addAuditEntry((users[id].isGpsEnabled ? '📍 GPS Turned ON: ' : '⚠️ GPS Turned OFF: ') + users[id].name, users[id].isGpsEnabled ? 'connect' : 'alarm');
+        }
+        saveCachedCrmUsers();
+        updateMarker(users[id]);
+        renderUserList();
+        renderCrmTable();
+        if (selectedUserId === id) showUserModal(users[id]);
+      }
+    }
+
+    function handleUserPacket(data) {
+      if (!data) return;
+      var id = data.userId || data.id;
+      if (!id || deletedUserIds[id]) return;
+
+      var isNew = !users[id];
+      var existing = users[id] || {};
+      var rawLat = data.latitude !== undefined ? data.latitude : data.lat;
+      var rawLng = data.longitude !== undefined ? data.longitude : data.lng;
+      var incomingLat = parseFloat(rawLat);
+      var incomingLng = parseFloat(rawLng);
+      var validIncoming = !(isNaN(incomingLat) || isNaN(incomingLng) || (incomingLat === 0 && incomingLng === 0));
+
+      var candidateObj = applyAdminPolicyToUserObj({
+        id: id,
+        name: data.displayName || data.name || data.userName || existing.name || ('Unit ' + id.substring(0, 5)),
+        email: data.email || existing.email || 'No email',
+        friendCode: data.friendCode || existing.friendCode || '----',
+        avatar: data.avatarBase64 || existing.avatar || null,
+        lat: validIncoming ? incomingLat : (existing.lat !== undefined ? existing.lat : NaN),
+        lng: validIncoming ? incomingLng : (existing.lng !== undefined ? existing.lng : NaN),
+        speed: data.speedKmh !== undefined ? data.speedKmh : (existing.speed || 0),
+        batteryPercent: data.batteryPercent !== undefined ? data.batteryPercent : (existing.batteryPercent !== undefined ? existing.batteryPercent : 100),
+        isCharging: data.isCharging !== undefined ? !!data.isCharging : !!existing.isCharging,
+        isSharing: data.isSharingLocation !== false,
+        isGpsEnabled: data.isGpsEnabled !== undefined ? !!data.isGpsEnabled : (existing.isGpsEnabled !== false),
+        timestamp: data.timestamp || Date.now(),
+        subscriptionPlan: data.subscriptionPlan || existing.subscriptionPlan || 'DEMO',
+        accountStatus: data.accountStatus || existing.accountStatus || 'ACTIVE',
+        subscriptionStartAt: data.subscriptionStartAt || existing.subscriptionStartAt || Date.now(),
+        subscriptionExpiresAt: data.subscriptionExpiresAt || existing.subscriptionExpiresAt || (Date.now() + 7 * 86400000),
+        maxFriends: data.maxFriends !== undefined ? data.maxFriends : existing.maxFriends,
+        maxGroups: data.maxGroups !== undefined ? data.maxGroups : existing.maxGroups,
+        rateLimitSec: data.rateLimitSec || existing.rateLimitSec || 5,
+        monthlyRateUsd: data.monthlyRateUsd !== undefined ? data.monthlyRateUsd : existing.monthlyRateUsd,
+        friendsCount: data.friendsCount !== undefined ? data.friendsCount : (existing.friendsCount || 0),
+        groupsCount: data.groupsCount !== undefined ? data.groupsCount : (existing.groupsCount || 0),
+        statusMessage: (data.statusMessage !== undefined ? data.statusMessage : (existing.statusMessage || '')).trim()
+      });
+
+      if (!guardAgainstDuplicateAccount(candidateObj)) return;
+      users[id] = applyAdminPolicyToUserObj(candidateObj);
+
+      if (isNew) {
+        addAuditEntry('New Node Registered: ' + users[id].name + ' [' + users[id].friendCode + '] • Pack: ' + users[id].subscriptionPlan, 'connect');
+        playTone(720, 'sine', 120);
+      }
+
+      if (isRemoved(id)) {
+        var keepRemovedAt = removedIds[id].removedAt;
+        removedIds[id] = snapshotOf(users[id]);
+        removedIds[id].removedAt = keepRemovedAt || Date.now();
+        saveRemoved();
+      }
+
+      saveCachedCrmUsers();
+      updateMarker(users[id]);
+      layoutMarkers();
+      renderUserList();
+      if (currentWorkspaceView === 'crm') renderCrmTable();
+      updateTopTicker();
+
+      if (selectedUserId === id) {
+        showUserModal(users[id]);
+      }
+    }
+
+    // ---------- Markers & Canvas Layout ----------
+    function updateMarker(u) {
+      var eff = getEffectiveAccountStatus(u);
+      if (!u || !hasValidPos(u) || isRemoved(u.id) || deletedUserIds[u.id] || eff === 'BANNED' || eff === 'DEACTIVATED') {
+        if (u && u.id) removeMarker(u.id);
+        return;
+      }
+
+      var isLive = isLiveUser(u);
+      var isDot = (a11ySettings.markerStyle === 'dot');
+      var gpsOff = (u.isGpsEnabled === false);
+      var isExpired = (eff === 'EXPIRED');
+
+      var customIcon;
+      if (isDot) {
+        var dotColor = isExpired ? '#ef4444;' : (gpsOff ? '#f59e0b;' : '');
+        var dotHtml = '<div class="minimal-dot-wrapper"><div class="minimal-dot-core" style="' + (dotColor ? 'background:' + dotColor : '') + '"></div></div>';
+        customIcon = L.divIcon({
+          className: 'pinpulse-marker',
+          html: dotHtml,
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+      } else {
+        var gpsTag = gpsOff ? ' <span style="color:#fbbf24;font-weight:900;">📍GPS OFF</span>' : '';
+        var expiredTag = isExpired ? ' <span style="color:#ef4444;font-weight:900;">🔒EXPIRED</span>' : '';
+        var statusTag = u.statusMessage
+          ? '<div style="background:rgba(15,23,42,0.92); color:#38bdf8; border:1px solid #38bdf8; border-radius:999px; padding:1px 7px; font-size:0.62rem; font-weight:800; white-space:nowrap; margin-bottom:3px; box-shadow:0 2px 6px rgba(0,0,0,0.5);">💬 ' + esc(u.statusMessage) + '</div>'
+          : '';
+        var ringStyle = isExpired ? 'border-color:#ef4444; box-shadow:0 0 10px rgba(239,68,68,0.6);' : (gpsOff ? 'border-color:#f59e0b;' : '');
+        var iconHtml = '<div class="pinpulse-marker-wrapper">' +
+                         statusTag +
+                         (isLive && !gpsOff && !isExpired ? '<div class="pulse-ring"></div>' : '') +
+                         '<div class="avatar-bubble" style="' + ringStyle + '">' + avatarHtml(u) + '</div>' +
+                         '<div class="name-pill">' + esc(u.name) + ' (' + esc(batteryText(u)) + ')' + gpsTag + expiredTag + '</div>' +
+                       '</div>';
+        customIcon = L.divIcon({
+          className: 'pinpulse-marker',
+          html: iconHtml,
+          iconSize: [60, 75],
+          iconAnchor: [30, 35]
+        });
+      }
+
+      if (markers[u.id]) {
+        markers[u.id].setIcon(customIcon);
+        markers[u.id].setLatLng([u.lat, u.lng]);
+      } else {
+        var id = u.id;
+        var marker = L.marker([u.lat, u.lng], { icon: customIcon });
+        marker.on('click', function() { selectUser(id); });
+        marker.addTo(map);
+        markers[id] = marker;
+      }
+    }
+
+    function removeMarker(id) {
+      if (markers[id]) {
+        map.removeLayer(markers[id]);
+        delete markers[id];
+      }
+    }
+
+    function layoutMarkers() {
+      if (!map || !legsLayer) return;
+      legsLayer.clearLayers();
+
+
+      var OVERLAP_PX = (a11ySettings.markerStyle === 'dot') ? 28 : 64;
+
+      var items = Object.keys(markers).sort().filter(function(id) { return !!users[id] && hasValidPos(users[id]); }).map(function(id) {
+        var u = users[id];
+        return { id: id, u: u, p: map.latLngToLayerPoint([u.lat, u.lng]) };
+      });
+
+      var assigned = {};
+      for (var i = 0; i < items.length; i++) {
+        if (assigned[items[i].id]) continue;
+        var group = [items[i]];
+        assigned[items[i].id] = true;
+        for (var g = 0; g < group.length; g++) {
+          for (var j = 0; j < items.length; j++) {
+            if (assigned[items[j].id]) continue;
+            if (group[g].p.distanceTo(items[j].p) < OVERLAP_PX) {
+              group.push(items[j]);
+              assigned[items[j].id] = true;
+            }
+          }
+        }
+        placeGroup(group);
+      }
+    }
+
+    function placeGroup(group) {
+      if (group.length === 1) {
+        var only = group[0];
+        markers[only.id].setLatLng([only.u.lat, only.u.lng]);
+        return;
+      }
+      var cx = 0, cy = 0;
+      group.forEach(function(it) { cx += it.p.x; cy += it.p.y; });
+      cx /= group.length;
+      cy /= group.length;
+
+      var n = group.length;
+      var radius = Math.max(50, (n * 60) / (2 * Math.PI));
+      group.forEach(function(it, k) {
+        var angle = (2 * Math.PI * k) / n - Math.PI / 2;
+        var pos = L.point(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+        var shown = map.layerPointToLatLng(pos);
+        markers[it.id].setLatLng(shown);
+
+        L.polyline([[it.u.lat, it.u.lng], shown], {
+          color: '#10b981', weight: 2, opacity: 0.8, dashArray: '4 5', interactive: false
+        }).addTo(legsLayer);
+      });
+    }
+
+    // ---------- Remote Siren Controls ----------
+    function ringSelectedUser() {
+      if (!selectedUserId) return;
+      var u = getUser(selectedUserId);
+      var payload = JSON.stringify({
+        type: 'RING_PHONE',
+        callerName: 'Web Admin Commander',
+        timestamp: Date.now()
+      });
+
+      try {
+        client.publish('pinpulse/v1/ring/' + selectedUserId, payload, { qos: 1 });
+        client.publish('pinpulse/v1/alerts/' + selectedUserId, payload, { qos: 1 });
+        if (u && u.friendCode) {
+          client.publish('pinpulse/v1/ring/' + u.friendCode, payload, { qos: 1 });
+        }
+        addAuditEntry('Triggered Emergency Siren on ' + (u ? u.name : selectedUserId), 'alarm');
+        alert('🔊 Emergency Siren dispatched to ' + (u ? u.name : 'Target') + '!\nRequires security PIN to stop locally.');
+      } catch (e) {
+        alert('Failed to send ring: ' + e.message);
+      }
+    }
+
+    function stopRingSelectedUser() {
+      if (!selectedUserId) return;
+      var u = getUser(selectedUserId);
+      var payload = JSON.stringify({
+        type: 'STOP_RING',
+        callerName: 'Web Admin Commander',
+        timestamp: Date.now()
+      });
+
+      try {
+        client.publish('pinpulse/v1/ring/' + selectedUserId, payload, { qos: 1 });
+        client.publish('pinpulse/v1/alerts/' + selectedUserId, payload, { qos: 1 });
+        if (u && u.friendCode) {
+          client.publish('pinpulse/v1/ring/' + u.friendCode, payload, { qos: 1 });
+        }
+        addAuditEntry('Dispatched STOP_RING (Remote Silence) for ' + (u ? u.name : selectedUserId), 'silence');
+        alert('🛑 Remote silence signal dispatched to ' + (u ? u.name : 'Target') + '!\nAlarm & vibration cut off immediately.');
+      } catch (e) {
+        alert('Failed to send stop signal: ' + e.message);
+      }
+    }
+
+    function silenceAllFleetSirens() {
+      if (!confirm('Broadcast emergency STOP_RING to silence all active sirens worldwide?')) return;
+      var payload = JSON.stringify({
+        type: 'STOP_RING',
+        callerName: 'SuperAdmin Fleet Command',
+        timestamp: Date.now()
+      });
+      try {
+        client.publish('pinpulse/v1/alerts/broadcast', payload, { qos: 1 });
+        client.publish('pinpulse/v1/ring/broadcast', payload, { qos: 1 });
+        addAuditEntry('BROADCAST EMERGENCY SILENCE DISPATCHED TO ALL UNITS', 'silence');
+        document.getElementById('tk-siren-alert').style.display = 'none';
+        alert('🛑 Fleet silence signal broadcast successfully.');
+      } catch (e) {
+        alert('Broadcast failed: ' + e.message);
+      }
+    }
+
+    // ---------- Inspector Floating Modal ----------
+    function selectUser(id) {
+      var u = getUser(id);
+      if (!u) return;
+      selectedUserId = id;
+
+      if (currentWorkspaceView === 'crm') {
+        switchMainWorkspaceView('map');
+      }
+      if (hasValidPos(u)) {
+        map.flyTo([u.lat, u.lng], Math.max(map.getZoom(), 16), { duration: 1.0 });
+      }
+      showUserModal(u);
+      renderUserList();
+    }
+
+    function closeModal() {
+      document.getElementById('person-modal').style.display = 'none';
+      selectedUserId = null;
+      renderUserList();
+    }
+
+    function showUserModal(u) {
+      var modal = document.getElementById('person-modal');
+      modal.style.display = 'block';
+
+      document.getElementById('m-name').textContent = u.name;
+      document.getElementById('m-email').textContent = u.email;
+      document.getElementById('m-code').textContent = 'FRIEND CODE: ' + (u.friendCode || '----');
+      document.getElementById('m-battery').textContent = batteryText(u);
+      document.getElementById('m-speed').textContent = formatSpeed(u.speed);
+
+      var sharingEl = document.getElementById('m-sharing');
+      if (sharingEl) {
+        if (u.isGpsEnabled === false) {
+          sharingEl.textContent = '📍 GPS OFF';
+          sharingEl.style.color = '#fbbf24';
+        } else {
+          sharingEl.textContent = u.isSharing ? '📍 GPS ON' : 'Paused';
+          sharingEl.style.color = u.isSharing ? 'var(--primary)' : 'var(--text-muted)';
+        }
+      }
+
+      var userMsgEl = document.getElementById('m-user-status-msg');
+      if (userMsgEl) {
+        if (u.statusMessage && u.statusMessage.trim()) {
+          userMsgEl.textContent = '💬 ' + u.statusMessage.trim();
+          userMsgEl.style.color = '#38bdf8';
+          userMsgEl.style.fontWeight = '800';
+        } else {
+          userMsgEl.textContent = '— No custom status set —';
+          userMsgEl.style.color = 'var(--text-muted)';
+          userMsgEl.style.fontWeight = '600';
+        }
+      }
+
+      document.getElementById('m-coords').textContent = hasValidPos(u)
+        ? (u.lat.toFixed(6) + ', ' + u.lng.toFixed(6) + (u.isGpsEnabled === false ? ' (Last Known • GPS OFF)' : ''))
+        : 'Waiting for GPS fix...';
+
+      var isLive = isLiveUser(u);
+      var statusEl = document.getElementById('m-status');
+      if (isLive) {
+        statusEl.textContent = u.isGpsEnabled === false ? 'Online (GPS Off)' : 'Live Now';
+        statusEl.style.color = u.isGpsEnabled === false ? '#fbbf24' : 'var(--primary)';
+      } else if (u.timestamp) {
+        statusEl.textContent = 'Last Seen ' + Math.round((Date.now() - u.timestamp) / 1000) + 's ago';
+        statusEl.style.color = 'var(--text-muted)';
+      } else {
+        statusEl.textContent = 'Offline';
+        statusEl.style.color = 'var(--danger)';
+      }
+
+      // Subscription & Governance fields inside Inspector
+      var effStatus = getEffectiveAccountStatus(u);
+      var badgeEl = document.getElementById('m-sub-status-badge');
+      if (badgeEl) {
+        badgeEl.className = 'status-pill status-' + effStatus;
+        badgeEl.textContent = effStatus;
+      }
+      var planEl = document.getElementById('m-sub-plan');
+      if (planEl) planEl.textContent = u.subscriptionPlan || 'DEMO';
+      var rateEl = document.getElementById('m-sub-rate');
+      if (rateEl) rateEl.textContent = '$' + Number(u.monthlyRateUsd || 0).toFixed(2) + '/mo';
+      var daysEl = document.getElementById('m-sub-days');
+      if (daysEl) daysEl.textContent = formatRemainingDays(u);
+      var rlEl = document.getElementById('m-sub-ratelimit');
+      if (rlEl) rlEl.textContent = (u.rateLimitSec || 3) + 's';
+      var qEl = document.getElementById('m-sub-quotas');
+      if (qEl) qEl.textContent = (u.friendsCount || 0) + '/' + (u.maxFriends !== undefined ? u.maxFriends : 1) + ' Friends • ' + (u.groupsCount || 0) + '/' + (u.maxGroups !== undefined ? u.maxGroups : 0) + ' Groups';
+
+      var deactBtn = document.getElementById('m-deactivate-btn');
+      if (deactBtn) {
+        deactBtn.textContent = (u.accountStatus === 'DEACTIVATED') ? '✅ Reactivate (Paid)' : '⏸️ Deactivate (Unpaid)';
+      }
+      var banBtn = document.getElementById('m-ban-btn');
+      if (banBtn) {
+        banBtn.textContent = (u.accountStatus === 'BANNED') ? '🔓 Unban' : '🚫 Ban';
+      }
+
+      var avatarEl = document.getElementById('m-avatar');
+      avatarEl.innerHTML = '';
+      if (u.avatar && u.avatar.length > 10) {
+        var img = document.createElement('img');
+        img.src = u.avatar;
+        avatarEl.appendChild(img);
+      } else {
+        avatarEl.textContent = (u.name || '?').charAt(0).toUpperCase();
+      }
+
+      document.getElementById('m-nav-link').href = hasValidPos(u)
+        ? 'https://www.google.com/maps/dir/?api=1&destination=' + u.lat + ',' + u.lng
+        : '#';
+
+      document.getElementById('m-remove-btn').textContent = isRemoved(u.id) ? 'Restore Node' : 'Quarantine Node';
+    }
+
+    // ---------- Commercial SaaS Admin Governance & Subscription Controls ----------
+    function publishAdminGovernanceCommand(u, policyPatch, auditDescription) {
+      if (!u || !u.id) return;
+      var currentPol = adminPolicies[u.id] || {
+        subscriptionPlan: u.subscriptionPlan || 'DEMO',
+        accountStatus: u.accountStatus || 'ACTIVE',
+        subscriptionStartAt: u.subscriptionStartAt || Date.now(),
+        subscriptionExpiresAt: u.subscriptionExpiresAt || (Date.now() + 7 * 86400000),
+        maxFriends: u.maxFriends !== undefined ? u.maxFriends : 1,
+        maxGroups: u.maxGroups !== undefined ? u.maxGroups : 0,
+        rateLimitSec: u.rateLimitSec || 5,
+        monthlyRateUsd: u.monthlyRateUsd || 0.0
+      };
+
+      var merged = Object.assign({}, currentPol, policyPatch, {
+        userId: u.id,
+        targetUserId: u.id,
+        friendCode: u.friendCode || '',
+        targetFriendCode: u.friendCode || '',
+        email: u.email || '',
+        targetEmail: u.email || '',
+        updatedAt: Date.now()
+      });
+
+      adminPolicies[u.id] = merged;
+      saveAdminPolicies();
+
+      if (merged.accountStatus === 'DELETED' || merged.action === 'DELETE_ACCOUNT') {
+        deletedUserIds[u.id] = Date.now();
+        saveDeletedUsers();
+        removeMarker(u.id);
+        delete users[u.id];
+        if (selectedUserId === u.id) closeModal();
+      } else if (users[u.id]) {
+        users[u.id] = applyAdminPolicyToUserObj(users[u.id]);
+        updateMarker(users[u.id]);
+        if (selectedUserId === u.id) showUserModal(users[u.id]);
+      }
+
+      saveCachedCrmUsers();
+      renderUserList();
+      renderCrmTable();
+      updateTopTicker();
+
+      if (client && client.connected) {
+        var jsonStr = JSON.stringify(merged);
+        client.publish('pinpulse/v1/admin/users/' + u.id, jsonStr, { qos: 1, retain: true });
+        if (u.friendCode && u.friendCode !== '----') {
+          var upperCode = u.friendCode.trim().toUpperCase();
+          client.publish('pinpulse/v1/admin/users/' + upperCode, jsonStr, { qos: 1, retain: true });
+          client.publish('pinpulse/v1/admin/users/' + upperCode.replace(/-/g, ''), jsonStr, { qos: 1, retain: true });
+        }
+        if (u.email && u.email.indexOf('@') !== -1) {
+          var cleanEmailUnderscore = u.email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+          var cleanEmailAppFormat = u.email.trim().toLowerCase().replace('@', '_at_').replace(/\./g, '_dot_').replace(/[^a-z0-9_]/g, '');
+          client.publish('pinpulse/v1/admin/users/' + cleanEmailUnderscore, jsonStr, { qos: 1, retain: true });
+          client.publish('pinpulse/v1/admin/users/' + cleanEmailAppFormat, jsonStr, { qos: 1, retain: true });
+        }
+        client.publish('pinpulse/v1/admin/broadcast', jsonStr, { qos: 1, retain: false });
+
+        // Synchronize friend registry channels so friends immediately see active plan & position
+        var userRegistryPayload = JSON.stringify({
+          id: u.id,
+          displayName: u.name,
+          email: u.email || '',
+          friendCode: u.friendCode || '',
+          statusMessage: u.statusMessage || '',
+          subscriptionPlan: merged.subscriptionPlan,
+          accountStatus: merged.accountStatus,
+          subscriptionExpiresAt: merged.subscriptionExpiresAt,
+          maxFriends: merged.maxFriends,
+          maxGroups: merged.maxGroups,
+          rateLimitSec: merged.rateLimitSec,
+          friendsCount: u.friendsCount || 0,
+          groupsCount: u.groupsCount || 0,
+          isSharingLocation: true,
+          latitude: hasValidPos(u) ? u.lat : 0.0,
+          longitude: hasValidPos(u) ? u.lng : 0.0,
+          lastUpdated: Date.now()
+        });
+        client.publish('pinpulse/v1/registry/user/' + u.id, userRegistryPayload, { qos: 1, retain: true });
+
+        var statusTopicPayload = JSON.stringify({
+          userId: u.id,
+          senderId: u.id,
+          status: merged.accountStatus === 'ACTIVE' ? 'ONLINE' : merged.accountStatus,
+          accountStatus: merged.accountStatus,
+          plan: merged.subscriptionPlan,
+          subscriptionPlan: merged.subscriptionPlan,
+          expiresAt: merged.subscriptionExpiresAt,
+          subscriptionExpiresAt: merged.subscriptionExpiresAt,
+          timestamp: Date.now()
+        });
+        client.publish('pinpulse/v1/user/' + u.id + '/status', statusTopicPayload, { qos: 1, retain: true });
+
+        if (hasValidPos(u)) {
+          var locPayload = JSON.stringify({
+            userId: u.id,
+            userName: u.name,
+            displayName: u.name,
+            email: u.email || '',
+            friendCode: u.friendCode || '',
+            latitude: u.lat,
+            longitude: u.lng,
+            speedKmh: u.speed || 0,
+            batteryPercent: u.batteryPercent !== undefined ? u.batteryPercent : 100,
+            isCharging: !!u.isCharging,
+            isSharingLocation: true,
+            isGpsEnabled: u.isGpsEnabled !== false,
+            subscriptionPlan: merged.subscriptionPlan,
+            accountStatus: merged.accountStatus,
+            subscriptionExpiresAt: merged.subscriptionExpiresAt,
+            maxFriends: merged.maxFriends,
+            maxGroups: merged.maxGroups,
+            rateLimitSec: merged.rateLimitSec,
+            timestamp: Date.now()
+          });
+          client.publish('pinpulse/v1/user/' + u.id + '/loc', locPayload, { qos: 0, retain: true });
+          client.publish('pinpulse/v1/network/live', locPayload, { qos: 0, retain: false });
+        }
+      }
+
+      if (auditDescription) {
+        addAuditEntry(auditDescription, 'connect');
+      }
+    }
+
+    function adminSetPack(userId, packName) {
+      var u = getUser(userId);
+      if (!u) return;
+      var preset = PACK_PRESETS[packName] || PACK_PRESETS.DEMO;
+      var now = Date.now();
+      var expiresAt = now + (preset.defaultDays * 86400000);
+
+      publishAdminGovernanceCommand(u, {
+        action: 'UPDATE_SUBSCRIPTION',
+        subscriptionPlan: preset.plan,
+        accountStatus: 'ACTIVE',
+        subscriptionStartAt: now,
+        subscriptionExpiresAt: expiresAt,
+        maxFriends: preset.maxFriends,
+        maxGroups: preset.maxGroups,
+        rateLimitSec: preset.rateLimitSec,
+        monthlyRateUsd: preset.monthlyRateUsd
+      }, '💼 Set Pack [' + preset.plan + '] for ' + u.name + ' (' + preset.maxFriends + 'F/' + preset.maxGroups + 'G • $' + preset.monthlyRateUsd + '/mo • ' + preset.defaultDays + 'd)');
+    }
+
+    function adminSetRateLimit(userId, rateSec) {
+      var u = getUser(userId);
+      if (!u) return;
+      var sec = Math.max(1, Math.min(300, parseInt(rateSec, 10) || 3));
+      publishAdminGovernanceCommand(u, {
+        action: 'UPDATE_RATE_LIMIT',
+        rateLimitSec: sec
+      }, '⏱️ Changed telemetry rate limit for ' + u.name + ' to ' + sec + 's');
+    }
+
+    function adminAddDays(userId, deltaDays) {
+      var u = getUser(userId);
+      if (!u) return;
+      var base = Math.max(Date.now(), u.subscriptionExpiresAt || Date.now());
+      var newExp = base + (deltaDays * 86400000);
+      publishAdminGovernanceCommand(u, {
+        action: 'EXTEND_SUBSCRIPTION',
+        accountStatus: 'ACTIVE',
+        subscriptionExpiresAt: newExp
+      }, '📅 Added +' + deltaDays + ' days to ' + u.name + ' subscription');
+    }
+
+    function adminActivateLifetime(userId) {
+      var u = getUser(userId);
+      if (!u) return;
+      var currentPlan = (u.subscriptionPlan || 'DEMO').toUpperCase();
+      var upgradedPlan = (currentPlan === 'DEMO') ? 'FAMILY' : currentPlan;
+      var maxFriends = Math.max(u.maxFriends || 1, upgradedPlan === 'FAMILY' ? 10 : 50);
+      var maxGroups = Math.max(u.maxGroups || 0, upgradedPlan === 'FAMILY' ? 2 : 10);
+      var rateLimitSec = Math.min(u.rateLimitSec || 3, 2);
+
+      publishAdminGovernanceCommand(u, {
+        action: 'ACTIVATE_LIFETIME',
+        subscriptionPlan: upgradedPlan,
+        accountStatus: 'ACTIVE',
+        isLifetime: true,
+        subscriptionStartAt: Date.now(),
+        subscriptionExpiresAt: LIFETIME_EXPIRES_AT,
+        maxFriends: maxFriends,
+        maxGroups: maxGroups,
+        rateLimitSec: rateLimitSec
+      }, '♾️ Activated LIFETIME ACCESS for ' + u.name + ' (' + upgradedPlan + ' • ' + maxFriends + 'F/' + maxGroups + 'G • Never Expires)');
+    }
+
+    function adminToggleDeactivate(userId) {
+      var u = getUser(userId);
+      if (!u) return;
+      var nextStatus = (u.accountStatus === 'DEACTIVATED') ? 'ACTIVE' : 'DEACTIVATED';
+      var patch = {
+        action: nextStatus === 'DEACTIVATED' ? 'DEACTIVATE_ACCOUNT' : 'ACTIVATE_ACCOUNT',
+        accountStatus: nextStatus
+      };
+      if (nextStatus === 'ACTIVE' && (!u.subscriptionExpiresAt || Date.now() > u.subscriptionExpiresAt)) {
+        patch.subscriptionExpiresAt = Date.now() + 30 * 86400000;
+      }
+      publishAdminGovernanceCommand(u, patch,
+        (nextStatus === 'DEACTIVATED' ? '⏸️ Deactivated account (until payment): ' : '✅ Reactivated account: ') + u.name);
+    }
+
+    function adminToggleBan(userId) {
+      var u = getUser(userId);
+      if (!u) return;
+      var nextStatus = (u.accountStatus === 'BANNED') ? 'ACTIVE' : 'BANNED';
+      if (nextStatus === 'BANNED' && !confirm('Ban ' + u.name + ' (' + u.email + ') from PinPulse?\nTheir app will lock immediately.')) return;
+      publishAdminGovernanceCommand(u, {
+        action: nextStatus === 'BANNED' ? 'BAN_USER' : 'UNBAN_USER',
+        accountStatus: nextStatus
+      }, (nextStatus === 'BANNED' ? '🚫 BANNED user: ' : '🔓 Unbanned user: ') + u.name);
+    }
+
+    function adminDeleteAccount(userId) {
+      var u = getUser(userId);
+      if (!u) return;
+      if (!confirm('⚠️ PERMANENTLY DELETE account for ' + u.name + ' (' + u.email + ')?\nThis will wipe their session on their phone and remove them from the radar.')) return;
+      publishAdminGovernanceCommand(u, {
+        action: 'DELETE_ACCOUNT',
+        accountStatus: 'DELETED'
+      }, '🗑️ DELETED user account: ' + u.name + ' (' + u.email + ')');
+    }
+
+    function openCustomPlanModal(userId) {
+      var u = getUser(userId);
+      if (!u) return;
+      document.getElementById('cp-user-id').value = u.id;
+      document.getElementById('cp-user-label').textContent = u.name + ' (' + (u.email || 'No email') + ' • Code: ' + (u.friendCode || '----') + ' • ID: ' + u.id + ')';
+
+      document.getElementById('cp-name').value = u.name || '';
+      document.getElementById('cp-status-msg').value = u.statusMessage || '';
+      document.getElementById('cp-email').value = u.email || '';
+      document.getElementById('cp-code').value = u.friendCode || '';
+      document.getElementById('cp-status').value = getEffectiveAccountStatus(u);
+      document.getElementById('cp-battery').value = u.batteryPercent !== undefined ? u.batteryPercent : 100;
+
+      document.getElementById('cp-lat').value = hasValidPos(u) ? u.lat.toFixed(6) : '';
+      document.getElementById('cp-lng').value = hasValidPos(u) ? u.lng.toFixed(6) : '';
+
+      document.getElementById('cp-plan').value = (u.subscriptionPlan || 'CUSTOM').toUpperCase();
+      document.getElementById('cp-rate-usd').value = Number(u.monthlyRateUsd !== undefined ? u.monthlyRateUsd : 49.99).toFixed(2);
+      document.getElementById('cp-max-friends').value = u.maxFriends !== undefined ? u.maxFriends : 100;
+      document.getElementById('cp-max-groups').value = u.maxGroups !== undefined ? u.maxGroups : 25;
+      document.getElementById('cp-days-left').value = getRemainingDaysCount(u) || 30;
+      document.getElementById('cp-rate-limit').value = String(u.rateLimitSec || 3);
+      document.getElementById('custom-plan-modal').style.display = 'flex';
+    }
+
+    function closeCustomPlanModal() {
+      document.getElementById('custom-plan-modal').style.display = 'none';
+    }
+
+    function onCustomModalPackPresetChange() {
+      var plan = document.getElementById('cp-plan').value;
+      var preset = PACK_PRESETS[plan] || PACK_PRESETS.CUSTOM;
+      document.getElementById('cp-rate-usd').value = preset.monthlyRateUsd.toFixed(2);
+      document.getElementById('cp-max-friends').value = preset.maxFriends;
+      document.getElementById('cp-max-groups').value = preset.maxGroups;
+      document.getElementById('cp-days-left').value = preset.defaultDays;
+      document.getElementById('cp-rate-limit').value = String(preset.rateLimitSec);
+    }
+
+    function saveCustomPlanModal() {
+      var userId = document.getElementById('cp-user-id').value;
+      var u = getUser(userId);
+      if (!u) return;
+
+      var newName = document.getElementById('cp-name').value.trim() || u.name;
+      var newStatusMsg = document.getElementById('cp-status-msg').value.trim();
+      var newEmail = document.getElementById('cp-email').value.trim() || u.email;
+      var newCode = document.getElementById('cp-code').value.trim().toUpperCase() || u.friendCode;
+      var newStatus = document.getElementById('cp-status').value;
+      var newBattery = Math.min(100, Math.max(0, parseInt(document.getElementById('cp-battery').value, 10) || 100));
+
+      var plan = document.getElementById('cp-plan').value;
+      var rateUsd = parseFloat(document.getElementById('cp-rate-usd').value) || 0;
+      var maxFriends = Math.max(0, parseInt(document.getElementById('cp-max-friends').value, 10) || 1);
+      var maxGroups = Math.max(0, parseInt(document.getElementById('cp-max-groups').value, 10) || 0);
+      var daysLeft = Math.max(0, parseInt(document.getElementById('cp-days-left').value, 10) || 0);
+      var rateLimitSec = Math.max(1, parseInt(document.getElementById('cp-rate-limit').value, 10) || 3);
+
+      var newLat = parseFloat(document.getElementById('cp-lat').value);
+      var newLng = parseFloat(document.getElementById('cp-lng').value);
+      if (!isNaN(newLat) && !isNaN(newLng)) {
+        u.lat = newLat;
+        u.lng = newLng;
+      }
+
+      u.name = newName;
+      u.statusMessage = newStatusMsg;
+      u.email = newEmail;
+      u.friendCode = newCode;
+      u.batteryPercent = newBattery;
+
+      var now = Date.now();
+      var expiresAt = now + (daysLeft * 86400000);
+
+      publishAdminGovernanceCommand(u, {
+        action: 'UPDATE_ACCOUNT_PROFILE',
+        name: newName,
+        displayName: newName,
+        statusMessage: newStatusMsg,
+        email: newEmail,
+        friendCode: newCode,
+        subscriptionPlan: plan,
+        accountStatus: newStatus,
+        subscriptionStartAt: now,
+        subscriptionExpiresAt: expiresAt,
+        maxFriends: maxFriends,
+        maxGroups: maxGroups,
+        rateLimitSec: rateLimitSec,
+        monthlyRateUsd: rateUsd,
+        batteryPercent: newBattery
+      }, '✏️ Saved Master Account edits for ' + newName + ' [' + newCode + ']: Plan=' + plan + ', Status=' + newStatus + ', ' + maxFriends + 'F/' + maxGroups + 'G');
+
+      closeCustomPlanModal();
+    }
+
+    let adminLiveWatchInterval = null;
+    let isAdminLiveWatchActive = true;
+
+    function toggleAdminLiveFleetWatch(forceState) {
+      if (forceState !== undefined) {
+        isAdminLiveWatchActive = forceState;
+      } else {
+        isAdminLiveWatchActive = !isAdminLiveWatchActive;
+      }
+      const lbl = document.getElementById("lbl-live-watch-state");
+      const btn = document.getElementById("btn-toggle-live-watch");
+      if (lbl) lbl.textContent = isAdminLiveWatchActive ? "ACTIVE" : "PAUSED";
+      if (btn) {
+        btn.style.borderColor = isAdminLiveWatchActive ? "#10b981" : "#64748b";
+        btn.style.color = isAdminLiveWatchActive ? "#10b981" : "#94a3b8";
+      }
+      if (adminLiveWatchInterval) {
+        clearInterval(adminLiveWatchInterval);
+        adminLiveWatchInterval = null;
+      }
+      if (isAdminLiveWatchActive) {
+        pingLiveWatchAll();
+        adminLiveWatchInterval = setInterval(pingLiveWatchAll, 20000);
+      }
+    }
+
+    function pingLiveWatchAll() {
+      if (!client || !client.connected) return;
+      const payload = JSON.stringify({ source: "admin_dashboard", timestamp: Date.now() });
+      client.publish("pinpulse/v1/watch/all", payload, { qos: 0, retain: false });
+    }
+
+    function pingLiveWatchUser(userId) {
+      if (!client || !client.connected || !userId) return;
+      const payload = JSON.stringify({ source: "admin_dashboard", target: userId, timestamp: Date.now() });
+      client.publish("pinpulse/v1/watch/" + userId, payload, { qos: 0, retain: false });
+    }
+
+    function openForceUpdateModal() {
+      document.getElementById("force-update-modal").style.display = "flex";
+      if (!document.getElementById("fu-min-version").value) {
+        document.getElementById("fu-min-version").value = "3.2";
+      }
+    }
+
+    function closeForceUpdateModal() {
+      document.getElementById("force-update-modal").style.display = "none";
+    }
+
+    function broadcastMandatoryUpdate() {
+      const minVer = (document.getElementById("fu-min-version").value || "").trim();
+      const reason = (document.getElementById("fu-reason").value || "Critical protocol & radar upgrade").trim();
+      if (!minVer) {
+        alert("Please specify the minimum required version (e.g. 3.2).");
+        return;
+      }
+      if (!client || !client.connected) {
+        alert("MQTT broker is not connected.");
+        return;
+      }
+      const payload = JSON.stringify({
+        minVersion: minVer,
+        mandatory: true,
+        reason: reason,
+        timestamp: Date.now()
+      });
+      client.publish("pinpulse/v1/admin/broadcast/force_update", payload, { qos: 1, retain: true }, function(err) {
+        if (err) {
+          alert("Error broadcasting update: " + err.message);
+        } else {
+          alert("🚀 Mandatory Update v" + minVer + " broadcasted to entire fleet! Devices will pre-download and lock.");
+          closeForceUpdateModal();
+        }
+      });
+    }
+
+    function broadcastClearForceUpdate() {
+      if (!client || !client.connected) {
+        alert("MQTT broker is not connected.");
+        return;
+      }
+      const payload = JSON.stringify({
+        minVersion: "",
+        mandatory: false,
+        timestamp: Date.now()
+      });
+      client.publish("pinpulse/v1/admin/broadcast/force_update", payload, { qos: 1, retain: true }, function(err) {
+        if (err) {
+          alert("Error clearing update: " + err.message);
+        } else {
+          alert("✅ Mandatory update lock cleared across fleet.");
+          closeForceUpdateModal();
+        }
+      });
+    }
+
+    function adminPruneAccount(userId) {
+      var u = getUser(userId);
+      var name = u ? (u.name + ' [' + (u.friendCode || userId) + ']') : userId;
+      if (!confirm('Permanently remove and prune account for ' + name + '?\nThis clears their retained broker topics and removes them from the dashboard.')) return;
+
+      deletedUserIds[userId] = Date.now();
+      saveDeletedUsers();
+      removeMarker(userId);
+      delete users[userId];
+      delete adminPolicies[userId];
+      saveAdminPolicies();
+      saveCachedCrmUsers();
+
+      if (selectedUserId === userId) closeModal();
+
+      if (client && client.connected) {
+        try {
+          client.publish('pinpulse/v1/user/' + userId + '/loc', '', { qos: 0, retain: true });
+          client.publish('pinpulse/v1/user/' + userId + '/status', '', { qos: 1, retain: true });
+          client.publish('pinpulse/v1/registry/user/' + userId, '', { qos: 1, retain: true });
+          client.publish('pinpulse/v1/admin/users/' + userId, '', { qos: 1, retain: true });
+        } catch (e) {}
+      }
+
+      addAuditEntry('🗑️ Removed & purged account: ' + name, 'connect');
+      renderUserList();
+      renderCrmTable();
+      updateTopTicker();
+    }
+
+    function adminPruneAllInactiveAccounts() {
+      var list = Object.values(users).filter(function(u) {
+        var eff = getEffectiveAccountStatus(u);
+        return eff === 'DELETED' || eff === 'BANNED' || eff === 'DEACTIVATED' || isRemoved(u.id);
+      });
+      if (list.length === 0) {
+        alert('No inactive, deactivated, or deleted accounts found to prune.');
+        return;
+      }
+      if (!confirm('Found ' + list.length + ' inactive/deactivated/deleted accounts.\nPermanently purge all of them and clear their broker topics?')) return;
+
+      list.forEach(function(u) {
+        deletedUserIds[u.id] = Date.now();
+        removeMarker(u.id);
+        delete users[u.id];
+        delete adminPolicies[u.id];
+        if (client && client.connected) {
+          try {
+            client.publish('pinpulse/v1/user/' + u.id + '/loc', '', { qos: 0, retain: true });
+            client.publish('pinpulse/v1/user/' + u.id + '/status', '', { qos: 1, retain: true });
+            client.publish('pinpulse/v1/registry/user/' + u.id, '', { qos: 1, retain: true });
+            client.publish('pinpulse/v1/admin/users/' + u.id, '', { qos: 1, retain: true });
+          } catch (e) {}
+        }
+      });
+      saveDeletedUsers();
+      saveAdminPolicies();
+      saveCachedCrmUsers();
+      addAuditEntry('🧹 Pruned ' + list.length + ' inactive accounts from dashboard & broker', 'connect');
+      renderUserList();
+      renderCrmTable();
+      updateTopTicker();
+      alert('Successfully pruned ' + list.length + ' inactive accounts!');
+    }
+
+    function renderCrmTable() {
+      var tbody = document.getElementById('crm-table-body');
+      if (!tbody) return;
+
+      var allUsers = Object.values(users).filter(function(u) { return !deletedUserIds[u.id]; });
+      var onlineCount = allUsers.filter(isLiveUser).length;
+      var demoCount = 0;
+      var paidCount = 0;
+      var lockedCount = 0;
+      var totalMrr = 0;
+
+      allUsers.forEach(function(u) {
+        var eff = getEffectiveAccountStatus(u);
+        if (eff === 'BANNED' || eff === 'DEACTIVATED' || eff === 'EXPIRED') lockedCount++;
+        if ((u.subscriptionPlan || 'DEMO') === 'DEMO') {
+          demoCount++;
+        } else if (eff === 'ACTIVE') {
+          paidCount++;
+          totalMrr += Number(u.monthlyRateUsd || 0);
+        }
+      });
+
+      var kpiTotal = document.getElementById('crm-kpi-total');
+      if (kpiTotal) kpiTotal.textContent = allUsers.length;
+      var kpiOnline = document.getElementById('crm-kpi-online');
+      if (kpiOnline) kpiOnline.textContent = onlineCount + ' currently online';
+      var kpiDemo = document.getElementById('crm-kpi-demo');
+      if (kpiDemo) kpiDemo.textContent = demoCount;
+      var kpiPaid = document.getElementById('crm-kpi-paid');
+      if (kpiPaid) kpiPaid.textContent = paidCount;
+      var kpiLocked = document.getElementById('crm-kpi-locked');
+      if (kpiLocked) kpiLocked.textContent = lockedCount;
+      var kpiMrr = document.getElementById('crm-kpi-mrr');
+      if (kpiMrr) kpiMrr.textContent = '$' + totalMrr.toFixed(2);
+      var crmBadge = document.getElementById('crm-total-badge');
+      if (crmBadge) crmBadge.textContent = allUsers.length;
+
+      var q = (document.getElementById('crm-search') ? document.getElementById('crm-search').value : '').toLowerCase();
+      var packFilter = document.getElementById('crm-filter-pack') ? document.getElementById('crm-filter-pack').value : 'ALL';
+      var statusFilter = document.getElementById('crm-filter-status') ? document.getElementById('crm-filter-status').value : 'ALL';
+
+      var filtered = allUsers.filter(function(u) {
+        var matchText = !q ||
+          (u.name || '').toLowerCase().indexOf(q) !== -1 ||
+          (u.email || '').toLowerCase().indexOf(q) !== -1 ||
+          (u.friendCode || '').toLowerCase().indexOf(q) !== -1 ||
+          (u.subscriptionPlan || '').toLowerCase().indexOf(q) !== -1;
+        if (!matchText) return false;
+        if (packFilter !== 'ALL' && (u.subscriptionPlan || 'DEMO') !== packFilter) return false;
+        var eff = getEffectiveAccountStatus(u);
+        if (statusFilter !== 'ALL' && eff !== statusFilter) return false;
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:36px; color:var(--text-muted);">No users match the current filter.</td></tr>';
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(u) {
+        var isLive = isLiveUser(u);
+        var effStatus = getEffectiveAccountStatus(u);
+        var plan = (u.subscriptionPlan || 'DEMO').toUpperCase();
+        var remText = formatRemainingDays(u);
+        var remDays = getRemainingDaysCount(u);
+        var gpsHtml = (u.isGpsEnabled === false)
+          ? '<span style="color:#fbbf24; font-weight:800;">📍 GPS OFF</span>'
+          : '<span style="color:var(--primary); font-weight:700;">📍 GPS ON</span>';
+
+        html += '<tr>';
+        // 1. User / Account
+        html += '<td>';
+        html += '  <div style="display:flex; align-items:center; gap:10px;">';
+        html += '    <div class="card-avatar" style="width:34px; height:34px; font-size:0.8rem; cursor:pointer;" onclick="selectUser(\'' + u.id + '\')">' + avatarHtml(u) + '</div>';
+        html += '    <div>';
+        html += '      <div style="font-weight:800; color:var(--text); cursor:pointer;" onclick="selectUser(\'' + u.id + '\')">' + esc(u.name) + ' <span class="card-code">' + esc(u.friendCode) + '</span></div>';
+        html += '      <div style="font-size:0.72rem; color:var(--text-muted);">' + esc(u.email) + '</div>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '</td>';
+
+        // 2. GPS & Telemetry
+        html += '<td>';
+        html += '  <div>' + (isLive ? '<span style="color:var(--primary);font-weight:700;">● Online</span>' : '<span style="color:var(--text-muted);">○ Offline</span>') + ' • ' + gpsHtml + '</div>';
+        html += '  <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Bat: ' + esc(batteryText(u)) + ' • ' + esc(formatSpeed(u.speed)) + '</div>';
+        if (u.statusMessage) {
+          html += '  <div style="font-size:0.72rem; color:#38bdf8; font-weight:800; margin-top:3px;">💬 ' + esc(u.statusMessage) + '</div>';
+        }
+        html += '</td>';
+
+        // 3. Subscription Pack
+        html += '<td>';
+        html += '  <span class="pack-badge pack-' + plan + '">' + plan + '</span>';
+        html += '  <div style="margin-top:4px;">';
+        html += '    <select class="crm-select" style="padding:3px 6px; font-size:0.68rem;" onchange="if(this.value===\'CUSTOM\'){openCustomPlanModal(\'' + u.id + '\');}else{adminSetPack(\'' + u.id + '\', this.value);}">';
+        html += '      <option value="DEMO" ' + (plan === 'DEMO' ? 'selected' : '') + '>🎁 Demo (1F/0G)</option>';
+        html += '      <option value="FAMILY" ' + (plan === 'FAMILY' ? 'selected' : '') + '>👨‍👩‍👧‍👦 Family (10F/2G)</option>';
+        html += '      <option value="BUSINESS" ' + (plan === 'BUSINESS' ? 'selected' : '') + '>🏢 Business (50F/10G)</option>';
+        html += '      <option value="CUSTOM" ' + (plan === 'CUSTOM' ? 'selected' : '') + '>⚡ Custom (100+)</option>';
+        html += '    </select>';
+        html += '  </div>';
+        html += '</td>';
+
+        // 4. Monthly Rate ($/mo)
+        html += '<td>';
+        html += '  <div style="font-weight:800; color:#fbbf24; font-family:\'JetBrains Mono\', monospace;">$' + Number(u.monthlyRateUsd || 0).toFixed(2) + '<span style="font-size:0.65rem; color:var(--text-muted);">/mo</span></div>';
+        html += '</td>';
+
+        // 5. Free / Remaining Days
+        html += '<td>';
+        html += '  <div style="font-weight:800; color:' + (isLifetimeUser(u) ? '#10b981' : (remDays <= 2 ? '#f87171' : '#38bdf8')) + ';">' + esc(remText) + '</div>';
+        html += '  <div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap;">';
+        html += '    <button class="crm-btn" onclick="adminAddDays(\'' + u.id + '\', 7)" title="Add 7 Free Days">+7d</button>';
+        html += '    <button class="crm-btn" onclick="adminAddDays(\'' + u.id + '\', 30)" title="Add 30 Days">+30d</button>';
+        html += '    <button class="crm-btn" style="background:linear-gradient(135deg,#f59e0b,#10b981); color:#000; border-color:#fbbf24; font-weight:900;" onclick="adminActivateLifetime(\'' + u.id + '\')" title="Activate Permanent Lifetime Access (Never Expires)">♾️ Lifetime</button>';
+        html += '  </div>';
+        html += '</td>';
+
+        // 6. Quotas (Friends & Groups)
+        html += '<td>';
+        html += '  <div style="font-weight:700;">👥 ' + (u.friendsCount || 0) + ' / ' + (u.maxFriends !== undefined ? u.maxFriends : 1) + ' Friends</div>';
+        html += '  <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">🛡️ ' + (u.groupsCount || 0) + ' / ' + (u.maxGroups !== undefined ? u.maxGroups : 0) + ' Groups</div>';
+        html += '</td>';
+
+        // 7. Telemetry Rate Limit
+        html += '<td>';
+        html += '  <select class="crm-select" style="padding:4px 6px; font-size:0.72rem;" onchange="adminSetRateLimit(\'' + u.id + '\', this.value)">';
+        [1, 2, 3, 5, 10, 30, 60].forEach(function(sec) {
+          html += '<option value="' + sec + '" ' + ((u.rateLimitSec || 3) == sec ? 'selected' : '') + '>' + sec + 's</option>';
+        });
+        html += '  </select>';
+        html += '</td>';
+
+        // 8. Account Status
+        html += '<td>';
+        html += '  <span class="status-pill status-' + effStatus + '">' + effStatus + '</span>';
+        html += '</td>';
+
+        // 9. Admin Actions
+        html += '<td>';
+        html += '  <div class="crm-actions-cell">';
+        html += '    <button class="crm-btn" style="color:#38bdf8; border-color:#0284c7; font-weight:800;" onclick="openCustomPlanModal(\'' + u.id + '\')" title="Edit Profile, Plan, Name, Status & Quotas">✏️ Edit</button>';
+        html += '    <button class="crm-btn warn" onclick="adminToggleDeactivate(\'' + u.id + '\')" title="Deactivate until user pays or reactivate">' + (u.accountStatus === 'DEACTIVATED' ? '✅ Activate' : '⏸️ Deactivate') + '</button>';
+        html += '    <button class="crm-btn danger" onclick="adminToggleBan(\'' + u.id + '\')" title="Ban or Unban from PinPulse">' + (u.accountStatus === 'BANNED' ? '🔓 Unban' : '🚫 Ban') + '</button>';
+        html += '    <button class="crm-btn" onclick="selectedUserId=\'' + u.id + '\'; toggleRemoveSelected(); renderCrmTable();" title="Hide/Restore on Radar Map">' + (isRemoved(u.id) ? '👁️ Restore' : '🚫 Hide Map') + '</button>';
+        html += '    <button class="crm-btn danger" onclick="adminPruneAccount(\'' + u.id + '\')" title="Permanently Remove Old Account from Dashboard & Broker">🗑️ Remove</button>';
+        html += '  </div>';
+        html += '</td>';
+        html += '</tr>';
+      });
+
+      tbody.innerHTML = html;
+    }
+
+    function copySelectedCoords() {
+      if (!selectedUserId) return;
+      var u = getUser(selectedUserId);
+      if (!u || !hasValidPos(u)) return;
+      var text = u.lat.toFixed(6) + ', ' + u.lng.toFixed(6);
+      navigator.clipboard.writeText(text).then(function() {
+        alert('Coordinates copied to clipboard:\n' + text);
+      });
+    }
+
+    function toggleRemoveSelected() {
+      if (!selectedUserId) return;
+      if (isRemoved(selectedUserId)) {
+        delete removedIds[selectedUserId];
+      } else {
+        var u = getUser(selectedUserId);
+        removedIds[selectedUserId] = snapshotOf(u || { name: 'Node ' + selectedUserId });
+      }
+      saveRemoved();
+      Object.values(users).forEach(updateMarker);
+      layoutMarkers();
+      renderUserList();
+      if (selectedUserId) {
+        var refreshed = getUser(selectedUserId);
+        if (refreshed) showUserModal(refreshed);
+      }
+    }
+
+    function restoreAll() {
+      removedIds = {};
+      saveRemoved();
+      Object.values(users).forEach(updateMarker);
+      layoutMarkers();
+      renderUserList();
+      alert('All quarantined devices restored to live map.');
+    }
+
+    function fitAllMarkersOnMap() {
+      var latlngs = Object.values(users)
+        .filter(function(u) { return hasValidPos(u) && !isRemoved(u.id) && !deletedUserIds[u.id] && getEffectiveAccountStatus(u) === 'ACTIVE'; })
+        .map(function(u) { return [u.lat, u.lng]; });
+      if (latlngs.length > 0) {
+        map.fitBounds(latlngs, { padding: [50, 50], maxZoom: 16 });
+      } else {
+        alert('No active GPS positions to fit.');
+      }
+    }
+
+    // ---------- Sidebar List & Tabs ----------
+    function switchSidebarTab(tab) {
+      document.querySelectorAll('.sidebar-tab').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+
+      document.getElementById('tab-btn-' + tab).classList.add('active');
+      document.getElementById('tab-btn-' + tab).setAttribute('aria-selected', 'true');
+      document.getElementById('pane-' + tab).classList.add('active');
+
+      if (tab === 'removed') renderRemovedList();
+    }
+
+    function setNodeFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+      if (btn) btn.classList.add('active');
+      renderUserList();
+    }
+
+    function renderUserList() {
+      var listEl = document.getElementById('user-list');
+      var filterText = document.getElementById('search-box').value.toLowerCase();
+
+      var allNodes = Object.values(users).filter(function(u) { return !isRemoved(u.id) && !deletedUserIds[u.id]; });
+
+      var filtered = allNodes.filter(function(u) {
+        var matchesText = u.name.toLowerCase().includes(filterText) ||
+                          u.email.toLowerCase().includes(filterText) ||
+                          u.friendCode.toLowerCase().includes(filterText) ||
+                          u.id.toLowerCase().includes(filterText);
+        if (!matchesText) return false;
+
+        if (currentFilter === 'live') return isLiveUser(u);
+        if (currentFilter === 'moving') return u.speed > 5;
+        if (currentFilter === 'lowbat') return u.batteryPercent <= 20;
+        return true;
+      });
+
+      document.getElementById('badge-active-count').textContent = allNodes.length;
+      var crmBadge = document.getElementById('crm-total-badge');
+      if (crmBadge) crmBadge.textContent = allNodes.length;
+
+      if (filtered.length === 0) {
+        listEl.innerHTML = '<div style="padding: 30px 10px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No matching units found.</div>';
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(u) {
+        var isSelected = (selectedUserId === u.id);
+        var isLive = isLiveUser(u);
+        var batClass = (u.batteryPercent <= 20) ? 'low' : 'normal';
+        var plan = (u.subscriptionPlan || 'DEMO').toUpperCase();
+        var effStatus = getEffectiveAccountStatus(u);
+
+        html += '<div class="user-card ' + (isSelected ? 'active' : '') + '" onclick="selectUser(\'' + u.id + '\')">';
+        html += '  <div class="card-avatar">' + avatarHtml(u) + '</div>';
+        html += '  <div class="card-info">';
+        html += '    <div class="card-title-row">';
+        html += '      <span class="card-title">' + esc(u.name) + '</span>';
+        html += '      <span class="pack-badge pack-' + plan + '" style="font-size:0.58rem; padding:1px 5px;">' + plan + '</span>';
+        html += '      <span class="card-code">' + esc(u.friendCode) + '</span>';
+        html += '    </div>';
+        html += '    <div class="card-email">' + esc(u.email) + ' • <span style="color:#38bdf8;">' + esc(formatRemainingDays(u)) + '</span></div>';
+        if (u.statusMessage) {
+          html += '    <div style="font-size:0.72rem; color:#38bdf8; font-weight:800; margin-bottom:2px;">💬 ' + esc(u.statusMessage) + '</div>';
+        }
+        html += '    <div class="card-telemetry">';
+        html += '      <span style="color:' + (isLive ? 'var(--primary)' : 'var(--text-muted)') + ';">' + (isLive ? '● Live' : '○ Idle') + '</span>';
+        if (u.isGpsEnabled === false) {
+          html += '      <span style="color:#fbbf24; font-weight:800;">📍 GPS OFF</span>';
+        }
+        if (effStatus !== 'ACTIVE') {
+          html += '      <span style="color:#f87171; font-weight:800;">' + effStatus + '</span>';
+        }
+        html += '      <span class="badge-speed">' + formatSpeed(u.speed) + '</span>';
+        html += '      <span class="badge-battery ' + batClass + '">' + batteryText(u) + '</span>';
+        html += '    </div>';
+        html += '  </div>';
+        html += '  <div class="card-quick-actions">';
+        html += '    <button class="action-icon-btn ring" onclick="event.stopPropagation(); selectedUserId=\'' + u.id + '\'; ringSelectedUser();" title="Ring Siren">🔊</button>';
+        html += '    <button class="action-icon-btn stop" onclick="event.stopPropagation(); selectedUserId=\'' + u.id + '\'; stopRingSelectedUser();" title="Stop Siren">🛑</button>';
+        html += '  </div>';
+        html += '</div>';
+      });
+
+      listEl.innerHTML = html;
+    }
+
+    function renderRemovedList() {
+      var listEl = document.getElementById('removed-list');
+      var keys = Object.keys(removedIds);
+      document.getElementById('badge-removed-count').textContent = keys.length;
+
+      if (keys.length === 0) {
+        listEl.innerHTML = '<div style="padding: 30px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No quarantined devices.</div>';
+        return;
+      }
+
+      var html = '';
+      keys.forEach(function(id) {
+        var s = removedIds[id];
+        html += '<div class="user-card">';
+        html += '  <div class="card-info">';
+        html += '    <div class="card-title">' + esc(s.name) + '</div>';
+        html += '    <div class="card-email">' + esc(s.email) + '</div>';
+        html += '  </div>';
+        html += '  <button class="btn-admin" onclick="delete removedIds[\'' + id + '\']; saveRemoved(); renderRemovedList(); Object.values(users).forEach(updateMarker);">Restore</button>';
+        html += '</div>';
+      });
+      listEl.innerHTML = html;
+    }
+
+    function updateTopTicker() {
+      var all = Object.values(users).filter(function(u) { return !isRemoved(u.id) && !deletedUserIds[u.id]; });
+      var live = all.filter(isLiveUser).length;
+      document.getElementById('tk-live-count').textContent = live + ' Online';
+
+      if (all.length > 0) {
+        var totalBat = all.reduce(function(acc, u) { return acc + (u.batteryPercent || 100); }, 0);
+        var avg = Math.round(totalBat / all.length);
+        document.getElementById('tk-battery-avg').textContent = avg + '%';
+      }
+    }
+
+    // ---------- Audit Log ----------
+    function addAuditEntry(msg, type) {
+      var time = new Date().toLocaleTimeString();
+      var entry = { time: time, msg: msg, type: type || 'normal' };
+      auditLogs.push(entry);
+      if (auditLogs.length > 100) auditLogs.shift();
+
+      document.getElementById('badge-log-count').textContent = auditLogs.length;
+
+      var stream = document.getElementById('log-stream');
+      var div = document.createElement('div');
+      div.className = 'log-entry ' + entry.type;
+      div.innerHTML = '<span class="log-time">[' + time + ']</span> ' + esc(msg);
+      stream.appendChild(div);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function clearAuditLog() {
+      auditLogs = [];
+      document.getElementById('log-stream').innerHTML = '';
+      document.getElementById('badge-log-count').textContent = '0';
+    }
+
+    // ---------- Accessibility System ----------
+    function openA11yDialog() {
+      document.getElementById('a11y-dialog').classList.add('open');
+    }
+
+    function closeA11yDialog() {
+      document.getElementById('a11y-dialog').classList.remove('open');
+    }
+
+    function handleDialogBackdrop(e) {
+      if (e.target.id === 'a11y-dialog') closeA11yDialog();
+    }
+
+    function applyA11ySettings() {
+      // 1. Theme
+      document.body.classList.remove('theme-high-contrast', 'theme-daylight', 'theme-night-amber');
+      if (a11ySettings.theme !== 'dark') {
+        document.body.classList.add('theme-' + a11ySettings.theme);
+      }
+      document.querySelectorAll('.a11y-options-grid button[id^="theme-btn-"]').forEach(function(b) {
+        b.classList.toggle('selected', b.id === 'theme-btn-' + a11ySettings.theme);
+      });
+
+      // 2. Font Scale
+      document.documentElement.style.setProperty('--font-scale', a11ySettings.fontScale);
+      var scaleId = 'scale-btn-' + Math.round(a11ySettings.fontScale * 100);
+      document.querySelectorAll('.a11y-options-grid button[id^="scale-btn-"]').forEach(function(b) {
+        b.classList.toggle('selected', b.id === scaleId);
+      });
+
+      // 3. Colorblind
+      document.body.classList.remove('cb-protanopia', 'cb-deuteranopia', 'cb-tritanopia', 'cb-mono');
+      if (a11ySettings.colorblind !== 'none') {
+        document.body.classList.add('cb-' + a11ySettings.colorblind);
+      }
+      document.querySelectorAll('.a11y-options-grid button[id^="cb-btn-"]').forEach(function(b) {
+        b.classList.toggle('selected', b.id === 'cb-btn-' + a11ySettings.colorblind);
+      });
+
+      // 4. Marker Style
+      document.querySelectorAll('.a11y-options-grid button[id^="marker-btn-"]').forEach(function(b) {
+        b.classList.toggle('selected', b.id === 'marker-btn-' + a11ySettings.markerStyle);
+      });
+
+      // 5. Reduce Motion
+      document.body.classList.toggle('reduce-motion', !!a11ySettings.reduceMotion);
+      var rmCheck = document.getElementById('toggle-reduce-motion');
+      if (rmCheck) rmCheck.checked = !!a11ySettings.reduceMotion;
+
+      // 6. Audio cues
+      var acCheck = document.getElementById('toggle-audio-cues');
+      if (acCheck) acCheck.checked = !!a11ySettings.audioCues;
+
+      // 7. Units
+      document.querySelectorAll('.a11y-options-grid button[id^="unit-btn-"]').forEach(function(b) {
+        b.classList.toggle('selected', b.id === 'unit-btn-' + a11ySettings.units);
+      });
+    }
+
+    function setTheme(theme) {
+      a11ySettings.theme = theme;
+      saveA11y();
+      applyA11ySettings();
+    }
+
+    function setFontScale(scale) {
+      a11ySettings.fontScale = scale;
+      saveA11y();
+      applyA11ySettings();
+    }
+
+    function setColorblindFilter(filter) {
+      a11ySettings.colorblind = filter;
+      saveA11y();
+      applyA11ySettings();
+    }
+
+    function setMarkerStyle(style) {
+      a11ySettings.markerStyle = style;
+      saveA11y();
+      applyA11ySettings();
+      Object.values(users).forEach(updateMarker);
+      layoutMarkers();
+    }
+
+    function toggleReduceMotion(enabled) {
+      a11ySettings.reduceMotion = enabled;
+      saveA11y();
+      applyA11ySettings();
+    }
+
+    function toggleAudioCues(enabled) {
+      a11ySettings.audioCues = enabled;
+      saveA11y();
+      applyA11ySettings();
+      if (enabled) playTone(520, 'sine', 150);
+    }
+
+    function setUnits(unit) {
+      a11ySettings.units = unit;
+      saveA11y();
+      applyA11ySettings();
+      renderUserList();
+      if (selectedUserId) {
+        var u = getUser(selectedUserId);
+        if (u) showUserModal(u);
+      }
+    }
+
+    // ---------- Keyboard Shortcuts ----------
+    function setupKeyboardShortcuts() {
+      window.addEventListener('keydown', function(e) {
+        // Ignore typing in input fields
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          if (e.key === 'Escape') {
+            e.target.blur();
+          }
+          return;
+        }
+
+        if (e.key === '/') {
+          e.preventDefault();
+          document.getElementById('search-box').focus();
+        } else if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+          e.preventDefault();
+          var dlg = document.getElementById('a11y-dialog');
+          if (dlg.classList.contains('open')) closeA11yDialog(); else openA11yDialog();
+        } else if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+          e.preventDefault();
+          silenceAllFleetSirens();
+        } else if (e.altKey && (e.key === 'f' || e.key === 'F')) {
+          e.preventDefault();
+          fitAllMarkersOnMap();
+        } else if (e.key === '1') {
+          switchSidebarTab('active');
+        } else if (e.key === '2') {
+          switchSidebarTab('removed');
+        } else if (e.key === '3') {
+          switchSidebarTab('audit');
+        } else if (e.key === '4') {
+          switchSidebarTab('diag');
+        } else if (e.key === 'Escape') {
+          closeModal();
+          closeA11yDialog();
+        }
+      });
+    }
+
+    function setupSearch() {
+      var box = document.getElementById('search-box');
+      box.addEventListener('input', renderUserList);
+    }
+  </script>
+<script>
+    // ==================== FRIENDS NETWORK & INSTANT FORCE-PAIR ENGINE ====================
+    var userFriendsMap = {};
+    try {
+      userFriendsMap = JSON.parse(localStorage.getItem('pinpulse_user_friends_v1') || '{}');
+    } catch (e) {
+      userFriendsMap = {};
+    }
+
+    function saveUserFriendsMap() {
+      try {
+        localStorage.setItem('pinpulse_user_friends_v1', JSON.stringify(userFriendsMap));
+      } catch (e) {}
+      updateFriendsKpis();
+    }
+
+    function handleFriendsRegistryPacket(topic, data) {
+      if (!data) return;
+      var targetId = data.userId || topic.split('/').pop();
+      if (!targetId) return;
+
+      var friendsList = Array.isArray(data.friends) ? data.friends : [];
+      userFriendsMap[targetId] = friendsList;
+      saveUserFriendsMap();
+
+      if (users[targetId]) {
+        users[targetId].friends = friendsList;
+        users[targetId].friendsCount = friendsList.length;
+        if (data.userName) users[targetId].name = data.userName;
+        if (data.userEmail) users[targetId].email = data.userEmail;
+        if (data.friendCode) users[targetId].friendCode = data.friendCode;
+        saveCachedCrmUsers();
+      }
+
+      if (currentWorkspaceView === 'friends') {
+        renderFriendsDirectory();
+        populatePairSelectors();
+      }
+    }
+
+    function refreshFriendsRegistry() {
+      if (client && client.connected) {
+        client.subscribe('pinpulse/v1/registry/friends/+', { qos: 1 });
+        client.subscribe('pinpulse/v1/registry/friends/#', { qos: 1 });
+        showNotification('Refreshing friends network from MQTT broker...', 'info');
+      }
+      populatePairSelectors();
+      renderFriendsDirectory();
+    }
+
+    function updateFriendsKpis() {
+      var allUserIds = Object.keys(users);
+      // Merge keys from userFriendsMap
+      Object.keys(userFriendsMap).forEach(function(k) {
+        if (allUserIds.indexOf(k) === -1) allUserIds.push(k);
+      });
+
+      var totalConnections = 0;
+      var connectedUsers = 0;
+      var soloUsers = 0;
+
+      allUserIds.forEach(function(uid) {
+        var flist = userFriendsMap[uid] || (users[uid] && Array.isArray(users[uid].friends) ? users[uid].friends : []);
+        if (flist && flist.length > 0) {
+          connectedUsers++;
+          totalConnections += flist.length;
+        } else {
+          soloUsers++;
+        }
+      });
+
+      var elTot = document.getElementById('friends-kpi-total');
+      var elConn = document.getElementById('friends-kpi-connected');
+      var elSolo = document.getElementById('friends-kpi-solo');
+
+      if (elTot) elTot.textContent = Math.round(totalConnections / 2) + ' pairs (' + totalConnections + ' links)';
+      if (elConn) elConn.textContent = connectedUsers;
+      if (elSolo) elSolo.textContent = soloUsers;
+    }
+
+    function populatePairSelectors() {
+      var sel1 = document.getElementById('fp-user-1');
+      var sel2 = document.getElementById('fp-user-2');
+      if (!sel1 || !sel2) return;
+
+      var currentVal1 = sel1.value;
+      var currentVal2 = sel2.value;
+
+      var allUsers = Object.values(users).slice();
+      // Also include any user in userFriendsMap not yet in users
+      Object.keys(userFriendsMap).forEach(function(uid) {
+        if (!users[uid]) {
+          allUsers.push({ id: uid, name: 'User ' + uid.substring(0, 6), email: '', friendCode: '----' });
+        }
+      });
+
+      allUsers.sort(function(a, b) {
+        var na = (a.name || a.displayName || a.id).toLowerCase();
+        var nb = (b.name || b.displayName || b.id).toLowerCase();
+        return na.localeCompare(nb);
+      });
+
+      var opts = '<option value="">-- Select a User --</option>';
+      allUsers.forEach(function(u) {
+        var label = (u.name || u.displayName || 'Unknown') + ' (' + (u.email || u.friendCode || u.id.substring(0, 6)) + ')';
+        opts += '<option value="' + u.id + '">' + escapeHtml(label) + '</option>';
+      });
+
+      sel1.innerHTML = opts;
+      sel2.innerHTML = opts;
+
+      if (currentVal1) sel1.value = currentVal1;
+      if (currentVal2) sel2.value = currentVal2;
+
+      updatePairPreview();
+      updateFriendsKpis();
+    }
+
+    function updatePairPreview() {
+      var sel1 = document.getElementById('fp-user-1');
+      var sel2 = document.getElementById('fp-user-2');
+      var prev1 = document.getElementById('fp-user-1-preview');
+      var prev2 = document.getElementById('fp-user-2-preview');
+      var statusEl = document.getElementById('fp-status-feedback');
+      if (statusEl) statusEl.textContent = '';
+
+      function renderPreview(uId, targetEl) {
+        if (!uId) {
+          targetEl.innerHTML = '<span style="color:var(--text-muted); font-style:italic;">No user selected</span>';
+          return;
+        }
+        var u = users[uId] || { id: uId, name: 'User ' + uId.substring(0, 6), email: 'N/A', friendCode: '----' };
+        var flist = userFriendsMap[uId] || (u.friends || []);
+        targetEl.innerHTML = '<div style="display:flex; align-items:center; gap:8px;">' +
+          '<div style="font-weight:700; color:#fff;">' + escapeHtml(u.name || u.displayName || 'User') + '</div>' +
+          '<span style="color:#38bdf8; font-size:0.75rem;">[' + escapeHtml(u.friendCode || '----') + ']</span>' +
+          '</div>' +
+          '<div style="font-size:0.72rem; color:var(--text-muted);">' + escapeHtml(u.email || 'No email') + ' ? ' + flist.length + ' friends</div>';
+      }
+
+      if (prev1) renderPreview(sel1 ? sel1.value : '', prev1);
+      if (prev2) renderPreview(sel2 ? sel2.value : '', prev2);
+
+      // Check if already friends
+      if (sel1 && sel2 && sel1.value && sel2.value && sel1.value !== sel2.value) {
+        var flist = userFriendsMap[sel1.value] || [];
+        var isAlready = flist.some(function(f) { return f.id === sel2.value; });
+        if (isAlready && statusEl) {
+          statusEl.innerHTML = '⚠️ <span style="color:#fbbf24;">These users are already friends! Executing will update/refresh their connection.</span>';
+        }
+      }
+    }
+
+    function swapPairUsers() {
+      var sel1 = document.getElementById('fp-user-1');
+      var sel2 = document.getElementById('fp-user-2');
+      if (!sel1 || !sel2) return;
+      var temp = sel1.value;
+      sel1.value = sel2.value;
+      sel2.value = temp;
+      updatePairPreview();
+    }
+
+    function executeForcePairAction() {
+      var sel1 = document.getElementById('fp-user-1');
+      var sel2 = document.getElementById('fp-user-2');
+      var statusEl = document.getElementById('fp-status-feedback');
+
+      if (!sel1 || !sel2 || !sel1.value || !sel2.value) {
+        alert('Please select both User 1 and User 2 to pair.');
+        return;
+      }
+      if (sel1.value === sel2.value) {
+        alert('Cannot pair a user with themselves. Please select two different users.');
+        return;
+      }
+
+      var u1Id = sel1.value;
+      var u2Id = sel2.value;
+      forcePairFriends(u1Id, u2Id);
+    }
+
+    function forcePairFriends(u1Id, u2Id) {
+      var u1 = users[u1Id] || { id: u1Id, name: 'User ' + u1Id.substring(0, 6), email: '', friendCode: '----' };
+      var u2 = users[u2Id] || { id: u2Id, name: 'User ' + u2Id.substring(0, 6), email: '', friendCode: '----' };
+
+      var friendFor1 = {
+        id: u2.id,
+        displayName: u2.name || u2.displayName || 'Friend',
+        friendCode: u2.friendCode || '----',
+        email: u2.email || '',
+        avatarIndex: u2.avatarIndex || 0
+      };
+
+      var friendFor2 = {
+        id: u1.id,
+        displayName: u1.name || u1.displayName || 'Friend',
+        friendCode: u1.friendCode || '----',
+        email: u1.email || '',
+        avatarIndex: u1.avatarIndex || 0
+      };
+
+      var cmdTo1 = {
+        type: 'FORCE_ADD_FRIEND',
+        friend: friendFor1,
+        timestamp: Date.now()
+      };
+
+      var cmdTo2 = {
+        type: 'FORCE_ADD_FRIEND',
+        friend: friendFor2,
+        timestamp: Date.now()
+      };
+
+      if (client && client.connected) {
+        client.publish('pinpulse/v1/admin/users/' + u1.id, JSON.stringify(cmdTo1), { qos: 1, retain: true });
+        client.publish('pinpulse/v1/admin/users/' + u2.id, JSON.stringify(cmdTo2), { qos: 1, retain: true });
+      }
+
+      // Update local storage representation
+      if (!userFriendsMap[u1.id]) userFriendsMap[u1.id] = [];
+      if (!userFriendsMap[u1.id].some(function(f) { return f.id === u2.id; })) {
+        userFriendsMap[u1.id].push(friendFor1);
+      }
+      if (!userFriendsMap[u2.id]) userFriendsMap[u2.id] = [];
+      if (!userFriendsMap[u2.id].some(function(f) { return f.id === u1.id; })) {
+        userFriendsMap[u2.id].push(friendFor2);
+      }
+      saveUserFriendsMap();
+
+      var statusEl = document.getElementById('fp-status-feedback');
+      if (statusEl) {
+        statusEl.innerHTML = '✨ <span style="color:var(--primary); font-weight:800;">Successfully paired ' + escapeHtml(u1.name || u1.id) + ' and ' + escapeHtml(u2.name || u2.id) + '! Devices updated automatically with no codes required.</span>';
+      }
+
+      addAuditLog('FORCE_PAIR', (u1.name || u1.id) + ' ⇆ ' + (u2.name || u2.id) + ' paired remotely');
+      showNotification('⚡ Successfully force-paired ' + (u1.name || u1.id) + ' and ' + (u2.name || u2.id) + '!', 'success');
+
+      if (window.PinPulseAdminBridge && window.PinPulseAdminBridge.vibrate) {
+        try { window.PinPulseAdminBridge.vibrate(100); } catch(e){}
+      }
+
+      renderFriendsDirectory();
+      updatePairPreview();
+    }
+
+    function forceUnpairFriends(u1Id, u2Id) {
+      if (!confirm('Are you sure you want to force-disconnect this friendship remotely?')) return;
+
+      var cmdTo1 = {
+        type: 'FORCE_REMOVE_FRIEND',
+        friendId: u2Id,
+        timestamp: Date.now()
+      };
+      var cmdTo2 = {
+        type: 'FORCE_REMOVE_FRIEND',
+        friendId: u1Id,
+        timestamp: Date.now()
+      };
+
+      if (client && client.connected) {
+        client.publish('pinpulse/v1/admin/users/' + u1Id, JSON.stringify(cmdTo1), { qos: 1, retain: true });
+        client.publish('pinpulse/v1/admin/users/' + u2Id, JSON.stringify(cmdTo2), { qos: 1, retain: true });
+      }
+
+      if (userFriendsMap[u1Id]) {
+        userFriendsMap[u1Id] = userFriendsMap[u1Id].filter(function(f) { return f.id !== u2Id; });
+      }
+      if (userFriendsMap[u2Id]) {
+        userFriendsMap[u2Id] = userFriendsMap[u2Id].filter(function(f) { return f.id !== u1Id; });
+      }
+      saveUserFriendsMap();
+
+      addAuditLog('FORCE_UNPAIR', u1Id + ' unpaired from ' + u2Id);
+      showNotification('Removed friendship connection between users.', 'warning');
+      renderFriendsDirectory();
+      updatePairPreview();
+    }
+
+    function quickPairWithUser(targetUserId) {
+      switchMainWorkspaceView('friends');
+      var sel1 = document.getElementById('fp-user-1');
+      if (sel1) {
+        sel1.value = targetUserId;
+        updatePairPreview();
+        var sel2 = document.getElementById('fp-user-2');
+        if (sel2) sel2.focus();
+      }
+    }
+
+    function renderFriendsDirectory() {
+      var container = document.getElementById('friends-cards-container');
+      if (!container) return;
+
+      var searchInput = document.getElementById('friends-search');
+      var query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+      var filterStatus = document.getElementById('friends-filter-status');
+      var filter = filterStatus ? filterStatus.value : 'ALL';
+
+      var allUserIds = Object.keys(users);
+      Object.keys(userFriendsMap).forEach(function(k) {
+        if (allUserIds.indexOf(k) === -1) allUserIds.push(k);
+      });
+
+      var filtered = allUserIds.filter(function(uid) {
+        var u = users[uid] || { id: uid, name: 'User ' + uid.substring(0, 6), email: '', friendCode: '----' };
+        var flist = userFriendsMap[uid] || (u.friends || []);
+
+        if (filter === 'WITH_FRIENDS' && flist.length === 0) return false;
+        if (filter === 'SOLO' && flist.length > 0) return false;
+
+        if (query) {
+          var matchUser = (u.name || '').toLowerCase().indexOf(query) !== -1 ||
+                          (u.email || '').toLowerCase().indexOf(query) !== -1 ||
+                          (u.friendCode || '').toLowerCase().indexOf(query) !== -1 ||
+                          u.id.toLowerCase().indexOf(query) !== -1;
+          var matchFriend = flist.some(function(f) {
+            return (f.displayName || '').toLowerCase().indexOf(query) !== -1 ||
+                   (f.email || '').toLowerCase().indexOf(query) !== -1 ||
+                   (f.friendCode || '').toLowerCase().indexOf(query) !== -1;
+          });
+          if (!matchUser && !matchFriend) return false;
+        }
+        return true;
+      });
+
+      filtered.sort(function(a, b) {
+        var fa = (userFriendsMap[a] || []).length;
+        var fb = (userFriendsMap[b] || []).length;
+        return fb - fa; // Users with most friends first
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1 / -1; text-align:center; padding:40px; color:var(--text-muted);">' +
+          'No users match the search filter. Use Instant Force-Pair above to create connections!' +
+          '</div>';
+        return;
+      }
+
+      var html = '';
+      filtered.forEach(function(uid) {
+        var u = users[uid] || { id: uid, name: 'User ' + uid.substring(0, 6), email: 'No email', friendCode: '----', subscriptionPlan: 'DEMO' };
+        var flist = userFriendsMap[uid] || (u.friends || []);
+        var plan = u.subscriptionPlan || 'DEMO';
+        var maxFriends = (plan === 'BUSINESS') ? 50 : (plan === 'FAMILY' ? 10 : 1);
+        var isOnline = (Date.now() - (u.timestamp || 0)) < 300000;
+
+        html += '<div class="friend-card">';
+        // Card Header
+        html += '  <div style="display:flex; justify-content:space-between; align-items:flex-start;">';
+        html += '    <div style="display:flex; align-items:center; gap:10px;">';
+        html += '      <div style="width:38px; height:38px; border-radius:50%; background:rgba(56,189,248,0.2); border:1px solid #38bdf8; display:flex; align-items:center; justify-content:center; font-weight:800; color:#38bdf8;">';
+        html += (u.name ? u.name.charAt(0).toUpperCase() : 'U');
+        html += '      </div>';
+        html += '      <div>';
+        html += '        <div style="font-weight:800; color:#fff; font-size:0.95rem; display:flex; align-items:center; gap:6px;">';
+        html += escapeHtml(u.name || u.displayName || 'Unknown User');
+        html += isOnline ? ' <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--primary);" title="Online now"></span>' : '';
+        html += '        </div>';
+        html += '        <div style="font-size:0.75rem; color:var(--text-muted);">' + escapeHtml(u.email || 'No email registered') + '</div>';
+        html += '      </div>';
+        html += '    </div>';
+        html += '    <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--primary); font-size:0.7rem; font-weight:700;">' + escapeHtml(u.friendCode || '----') + '</span>';
+        html += '  </div>';
+
+        // Plan & Quota badge
+        html += '  <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; background:rgba(255,255,255,0.03); padding:6px 10px; border-radius:8px;">';
+        html += '    <span style="color:var(--text-muted);">' + plan + ' Pack</span>';
+        html += '    <span style="font-weight:700; color:' + (flist.length >= maxFriends ? '#ef4444' : 'var(--primary)') + ';">' + flist.length + ' / ' + maxFriends + ' Friends</span>';
+        html += '  </div>';
+
+        // Friends List
+        html += '  <div style="flex:1;">';
+        html += '    <div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:6px;">Current Friends (' + flist.length + ')</div>';
+        if (flist.length === 0) {
+          html += '    <div style="font-size:0.75rem; color:var(--text-muted); font-style:italic; padding:6px 0;">No active friends paired yet.</div>';
+        } else {
+          flist.forEach(function(f) {
+            html += '    <div class="friend-item-row">';
+            html += '      <div style="display:flex; align-items:center; gap:8px;">';
+            html += '        <span style="font-size:0.85rem;">👤</span>';
+            html += '        <div>';
+            html += '          <div style="font-weight:700; font-size:0.8rem; color:#fff;">' + escapeHtml(f.displayName || f.name || 'Friend') + '</div>';
+            html += '          <div style="font-size:0.7rem; color:#38bdf8;">' + escapeHtml(f.friendCode || '----') + (f.email ? ' ? ' + escapeHtml(f.email) : '') + '</div>';
+            html += '        </div>';
+            html += '      </div>';
+            html += '      <button onclick="forceUnpairFriends('' + uid + '', '' + f.id + '')" style="background:transparent; border:none; color:var(--danger); font-size:0.75rem; cursor:pointer; padding:4px 8px; font-weight:700;" title="Force disconnect this friendship">✕ Unpair</button>';
+            html += '    </div>';
+          });
+        }
+        html += '  </div>';
+
+        // Bottom Actions
+        html += '  <div style="display:flex; gap:8px; margin-top:4px;">';
+        html += '    <button class="crm-btn" style="flex:1; justify-content:center;" onclick="quickPairWithUser('' + uid + '')">⚡ Pair With Someone</button>';
+        html += '    <button class="crm-btn" onclick="selectedUserId='' + uid + ''; showUserModal(users['' + uid + ''] || {id:'' + uid + ''});" title="View full profile">🔍 View</button>';
+        html += '  </div>';
+
+        html += '</div>';
+      });
+
+      container.innerHTML = html;
+      updateFriendsKpis();
+    }
+
+    // Hardware auth verification
+    function checkHardwareAuth() {
+      fetch('/api/admin/hardware-auth')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var badgeText = document.getElementById('hw-badge-text');
+          if (data && data.authorized) {
+            if (badgeText) badgeText.textContent = 'PC HARDWARE VERIFIED [' + (data.verifiedMac || '0A:E0:AF:A6:0E:2F').toUpperCase() + ']';
+          }
+        })
+        .catch(function(e) {
+          // Inside Android WebView or direct file:// load
+          var badgeText = document.getElementById('hw-badge-text');
+          if (window.PinPulseAdminBridge) {
+            if (badgeText) badgeText.textContent = 'ADMIN APK MASTER AUTHENTICATED';
+          } else {
+            if (badgeText) badgeText.textContent = 'PC HARDWARE LOCKED [0A:E0:AF:A6:0E:2F]';
+          }
+        });
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+      setTimeout(function() {
+        populatePairSelectors();
+        checkHardwareAuth();
+      }, 800);
+    });
+</script>
+</body>
+</html>

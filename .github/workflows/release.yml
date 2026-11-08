@@ -1,0 +1,76 @@
+name: Build & Publish PinPulse Admin Release APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Signed PinPulse Admin APK & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Calculate Release Version
+        run: |
+          BUILD_NUM=${{ github.run_number }}
+          VERSION_NAME="1.0.${BUILD_NUM}"
+          VERSION_CODE=$((100 + BUILD_NUM))
+          echo "VERSION_NAME=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "VERSION_CODE=${VERSION_CODE}" >> $GITHUB_ENV
+          echo "Building PinPulse Admin v${VERSION_NAME} (code=${VERSION_CODE})..."
+
+      - name: Build Signed Release APK
+        run: |
+          ./gradlew assembleRelease \
+            -PversionCode=${{ env.VERSION_CODE }} \
+            -PversionName=${{ env.VERSION_NAME }} \
+            --no-daemon
+
+      - name: Stage Release APK Asset
+        run: |
+          APK_FILE="PinPulseAdmin-v${{ env.VERSION_NAME }}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "${APK_FILE}"
+          echo "APK_FILE=${APK_FILE}" >> $GITHUB_ENV
+          ls -lh "${APK_FILE}"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ env.VERSION_NAME }}"
+          name: "PinPulse Admin v${{ env.VERSION_NAME }} (Build #${{ github.run_number }})"
+          body: |
+            ### PinPulse Master Admin Console (APK Release)
+            - **Hardware-Secured PC Web Console**: Authenticated for authorized workstation MAC `0A-E0-AF-A6-0E-2F` (`server.js`).
+            - **Master Password Security**: Requires setup of an encrypted master password on first launch and unlocks subsequent sessions.
+            - **Friendship Network & Live Inspector**: Inspects "who is friends with whom" across all fleet nodes in real time.
+            - **⚡ Instant Force-Pairing Engine**: Remote zero-code force pairing between any two users without requiring invitations or acceptance.
+            - **SaaS CRM & Subscriptions**: Full pack management (Demo, Family, Business, Custom), accounts lock/unlock, speed limits, live radar map.
+          files: |
+            ${{ env.APK_FILE }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
