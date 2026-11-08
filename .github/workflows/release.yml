@@ -27,10 +27,8 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
+      - name: Make Gradle Wrapper Executable
+        run: chmod +x gradlew
 
       - name: Calculate Release Version
         run: |
