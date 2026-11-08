@@ -406,19 +406,47 @@ class AdminMqttManager(private val context: Context) : MqttCallbackExtended {
         onComplete(true)
     }
 
+    fun cleanEmail(email: String): String =
+        email.trim().lowercase().replace("@", "_at_").replace(".", "_")
+
     /**
      * Updates subscription plan and limits.
      */
     fun updateUserPlan(userId: String, plan: String, maxFriends: Int, maxGroups: Int, rateLimit: Int) {
+        val targetUser = _users.value[userId]
+        val codeUpper = targetUser?.friendCode?.trim()?.uppercase().orEmpty()
+        val email = targetUser?.email?.trim().orEmpty()
+        val emailTag = if (email.isNotBlank()) cleanEmail(email) else ""
+
         val cmd = JSONObject().apply {
             put("type", "ADMIN_UPDATE_PLAN")
+            put("targetUserId", userId)
+            put("userId", userId)
+            if (codeUpper.isNotBlank()) {
+                put("targetFriendCode", codeUpper)
+                put("friendCode", codeUpper)
+            }
+            if (email.isNotBlank()) {
+                put("targetEmail", email)
+                put("email", email)
+            }
             put("subscriptionPlan", plan)
             put("maxFriends", maxFriends)
             put("maxGroups", maxGroups)
             put("rateLimitSeconds", rateLimit)
+            put("rateLimitSec", rateLimit)
             put("timestamp", System.currentTimeMillis())
         }
-        publishRetained("pinpulse/v1/admin/users/$userId", cmd.toString())
+        val payloadStr = cmd.toString()
+        publishRetained("pinpulse/v1/admin/users/$userId", payloadStr)
+        if (codeUpper.isNotBlank() && codeUpper != userId) {
+            publishRetained("pinpulse/v1/admin/users/$codeUpper", payloadStr)
+        }
+        if (emailTag.isNotBlank() && emailTag != userId) {
+            publishRetained("pinpulse/v1/admin/users/$emailTag", payloadStr)
+        }
+        publish("pinpulse/v1/admin/broadcast/user_update", payloadStr, qos = 1, retained = false)
+
         updateUser(userId) { u ->
             u.copy(
                 subscriptionPlan = plan,
@@ -434,12 +462,36 @@ class AdminMqttManager(private val context: Context) : MqttCallbackExtended {
      * Updates account status (ACTIVE, LOCKED_PAYMENT, BANNED, DELETED).
      */
     fun updateUserStatus(userId: String, newStatus: String) {
+        val targetUser = _users.value[userId]
+        val codeUpper = targetUser?.friendCode?.trim()?.uppercase().orEmpty()
+        val email = targetUser?.email?.trim().orEmpty()
+        val emailTag = if (email.isNotBlank()) cleanEmail(email) else ""
+
         val cmd = JSONObject().apply {
             put("type", "ADMIN_UPDATE_STATUS")
+            put("targetUserId", userId)
+            put("userId", userId)
+            if (codeUpper.isNotBlank()) {
+                put("targetFriendCode", codeUpper)
+                put("friendCode", codeUpper)
+            }
+            if (email.isNotBlank()) {
+                put("targetEmail", email)
+                put("email", email)
+            }
             put("accountStatus", newStatus)
             put("timestamp", System.currentTimeMillis())
         }
-        publishRetained("pinpulse/v1/admin/users/$userId", cmd.toString())
+        val payloadStr = cmd.toString()
+        publishRetained("pinpulse/v1/admin/users/$userId", payloadStr)
+        if (codeUpper.isNotBlank() && codeUpper != userId) {
+            publishRetained("pinpulse/v1/admin/users/$codeUpper", payloadStr)
+        }
+        if (emailTag.isNotBlank() && emailTag != userId) {
+            publishRetained("pinpulse/v1/admin/users/$emailTag", payloadStr)
+        }
+        publish("pinpulse/v1/admin/broadcast/user_update", payloadStr, qos = 1, retained = false)
+
         updateUser(userId) { u -> u.copy(accountStatus = newStatus) }
         addAuditLog("UPDATE_STATUS", "$userId -> $newStatus")
     }

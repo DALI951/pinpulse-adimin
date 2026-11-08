@@ -20,9 +20,9 @@ import com.pinpulse.admin.data.AdminMqttManager
 import com.pinpulse.admin.security.AdminSecurityManager
 
 enum class AdminNavTab(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    RADAR("Live Map", Icons.Default.Map),
     FRIENDS("Friends", Icons.Default.People),
     CRM("CRM Sheet", Icons.Default.Badge),
-    RADAR("Radar", Icons.Default.Navigation),
     SECURITY("Security", Icons.Default.Security)
 }
 
@@ -35,7 +35,7 @@ fun AdminHomeScreen(
 ) {
     val context = LocalContext.current
     val isConnected by mqttManager.isConnected.collectAsState()
-    var currentTab by remember { mutableStateOf(AdminNavTab.FRIENDS) }
+    var currentTab by remember { mutableStateOf(AdminNavTab.RADAR) }
 
     fun showToast(msg: String) {
         Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
