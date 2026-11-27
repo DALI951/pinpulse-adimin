@@ -289,6 +289,58 @@ fun CrmTab(
 
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        // Siren Controls Row: 🔊 Ring & 🛑 Stop Siren
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    if (mqttManager.ringUser(user)) {
+                                        onShowToast("🔊 Ringing ${user.effectiveName}...")
+                                    } else {
+                                        onShowToast("⚠️ MQTT offline — reconnecting to EMQX...")
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                            ) {
+                                Text(
+                                    text = "🔊 Ring",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.Black
+                                )
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    if (mqttManager.stopRingUser(user)) {
+                                        onShowToast("🛑 Stopped siren on ${user.effectiveName}")
+                                    } else {
+                                        onShowToast("⚠️ MQTT offline — reconnecting to EMQX...")
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(38.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                            ) {
+                                Text(
+                                    text = "🛑 Stop Siren",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         // Actions Row
                         Row(
                             modifier = Modifier.fillMaxWidth(),

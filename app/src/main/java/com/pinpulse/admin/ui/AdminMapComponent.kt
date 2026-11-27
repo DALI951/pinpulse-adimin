@@ -81,6 +81,8 @@ fun AdminMapComponent(
     users: List<AdminUser>,
     selectedUser: AdminUser?,
     onSelectUser: (AdminUser?) -> Unit,
+    onRingUser: (AdminUser) -> Unit,
+    onStopRingUser: (AdminUser) -> Unit,
     onEditPlan: (AdminUser) -> Unit,
     onToggleLock: (AdminUser) -> Unit,
     onCopyCoords: (String) -> Unit,
@@ -454,7 +456,47 @@ fun AdminMapComponent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Siren Controls Row: 🔊 Ring & 🛑 Stop Siren
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { onRingUser(user) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                        ) {
+                            Text(
+                                text = "🔊 Ring",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.Black
+                            )
+                        }
+
+                        OutlinedButton(
+                            onClick = { onStopRingUser(user) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                        ) {
+                            Text(
+                                text = "🛑 Stop Siren",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Actions: Edit Plan & Lock/Unlock Button
                     Row(

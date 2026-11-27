@@ -183,6 +183,22 @@ fun RadarTab(
             }
         }
 
+        fun ringTargetUser(user: AdminUser) {
+            if (mqttManager.ringUser(user)) {
+                onShowToast("🔊 Ringing ${user.effectiveName}...")
+            } else {
+                onShowToast("⚠️ MQTT offline — reconnecting to EMQX...")
+            }
+        }
+
+        fun stopTargetSiren(user: AdminUser) {
+            if (mqttManager.stopRingUser(user)) {
+                onShowToast("🛑 Stopped siren on ${user.effectiveName}")
+            } else {
+                onShowToast("⚠️ MQTT offline — reconnecting to EMQX...")
+            }
+        }
+
         // Body Content (Interactive Map or Telemetry List)
         Box(modifier = Modifier.weight(1f)) {
             if (viewMode == "MAP") {
@@ -190,6 +206,8 @@ fun RadarTab(
                     users = filteredUsers,
                     selectedUser = selectedUser,
                     onSelectUser = { selectedUser = it },
+                    onRingUser = { ringTargetUser(it) },
+                    onStopRingUser = { stopTargetSiren(it) },
                     onEditPlan = { editingUserForPlan = it },
                     onToggleLock = { toggleUserLock(it) },
                     onCopyCoords = { copyToClipboard("GPS Coordinates", it) },
@@ -362,6 +380,39 @@ fun RadarTab(
                                             Icon(Icons.Default.Map, contentDescription = null, modifier = Modifier.size(12.dp), tint = Color.Black)
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text("Locate", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    // Siren Remote Controls Row in List Card
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Button(
+                                            onClick = { ringTargetUser(user) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(34.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("🔊 Ring", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { stopTargetSiren(user) },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(34.dp),
+                                            shape = RoundedCornerShape(8.dp),
+                                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444)),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444)),
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                        ) {
+                                            Text("🛑 Stop Siren", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
